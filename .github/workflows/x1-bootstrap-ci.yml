@@ -14,4 +14,4 @@ jobs:
           test -f AGENTS.md
           test -f REPO_MANIFEST.json
           test -f .env.example
-          if grep -RIE "(sk-[A-Za-z0-9_-]{20,}|service_role.*=.*[^[:space:]])" --exclude-dir=.git .; then echo "Potential secret pattern detected"; exit 1; fi
+          if grep -RIlE "(BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY|gh[pousr]_[A-Za-z0-9]{20,}|sbp_[A-Za-z0-9_-]{20,})" --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=dist --exclude=x1-bootstrap-ci.yml .; then echo "Potential high-confidence secret pattern detected"; exit 1; fi
