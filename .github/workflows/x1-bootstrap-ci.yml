@@ -1,0 +1,17 @@
+name: x1-bootstrap-ci
+on:
+  pull_request:
+  push:
+    branches-ignore: [main]
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check required governance files
+        run: |
+          test -f README.md
+          test -f AGENTS.md
+          test -f REPO_MANIFEST.json
+          test -f .env.example
+          if grep -RIlE "(BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY|gh[pousr]_[A-Za-z0-9]{20,}|sbp_[A-Za-z0-9_-]{20,})" --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=dist --exclude=x1-bootstrap-ci.yml .; then echo "Potential high-confidence secret pattern detected"; exit 1; fi
