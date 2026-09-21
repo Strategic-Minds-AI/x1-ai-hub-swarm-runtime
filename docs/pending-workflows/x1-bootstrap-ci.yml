@@ -1,0 +1,17 @@
+name: x1-bootstrap-ci
+on:
+  pull_request:
+  push:
+    branches-ignore: [main]
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check required governance files
+        run: |
+          test -f README.md
+          test -f AGENTS.md
+          test -f REPO_MANIFEST.json
+          test -f .env.example
+          if grep -RIE "(sk-[A-Za-z0-9_-]{20,}|service_role.*=.*[^[:space:]])" --exclude-dir=.git .; then echo "Potential secret pattern detected"; exit 1; fi

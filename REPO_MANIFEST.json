@@ -1,0 +1,27 @@
+{
+  "org": "Strategic-Minds-AI",
+  "repo": "Strategic-Minds-AI/x1-ai-hub-swarm-runtime",
+  "name": "x1-ai-hub-swarm-runtime",
+  "role": "Railway-oriented swarm runtime for leased tasks, ephemeral agents, budgets, retries, dead letters and worker health.",
+  "visibility": "private",
+  "canonical_branch": "main",
+  "bootstrap_branch": "bootstrap/x1-ai-hub-os-v1",
+  "action_class": "BRANCH_WRITE",
+  "production_release": "LOCKED",
+  "production_status": "production locked",
+  "upstream_contracts": [
+    "X1 Source Truth Constitution",
+    "Universal Generator Spec",
+    "Protocol schemas",
+    "Security Constitution",
+    "VERIFIED_100"
+  ],
+  "required_files": [
+    "README.md",
+    "AGENTS.md",
+    "REPO_MANIFEST.json",
+    ".env.example",
+    ".gitignore",
+    ".github/workflows/x1-bootstrap-ci.yml"
+  ]
+}
