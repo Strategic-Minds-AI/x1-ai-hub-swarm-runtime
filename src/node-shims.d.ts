@@ -3,6 +3,10 @@ declare module "node:crypto" {
     update(data: string | Uint8Array): any;
     digest(encoding: "hex"): string;
   };
+  export function createHash(algorithm: string): {
+    update(data: string | Uint8Array): any;
+    digest(encoding: "hex"): string;
+  };
   export function timingSafeEqual(a: Uint8Array, b: Uint8Array): boolean;
 }
 declare module "node:http" {
