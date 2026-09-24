@@ -26,7 +26,8 @@ export interface WorkerOrchestratorConfig {
 }
 
 function codeFor(error:unknown): string {
-  return error instanceof Error ? error.message.split(":")[0] : "UNKNOWN_FAILURE";
+  if(!(error instanceof Error)) return "UNKNOWN_FAILURE";
+  return error.message.split(":")[0] ?? "UNKNOWN_FAILURE";
 }
 
 function nonRetryableAuthorizationError(code:string): boolean {

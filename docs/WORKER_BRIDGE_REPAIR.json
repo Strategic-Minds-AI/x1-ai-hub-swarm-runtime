@@ -1,0 +1,8 @@
+{
+  "work_packet_id":"WP-20260924-X1-WORKER-BRIDGE",
+  "status":"REPAIR_APPLIED",
+  "failed_ci_run_id":35987445603,
+  "root_cause":"strict noUncheckedIndexedAccess treated split()[0] as string|undefined",
+  "repair":"fallback UNKNOWN_FAILURE added without changing worker behavior",
+  "production_release":"LOCKED"
+}
