@@ -27,6 +27,12 @@ export interface BootstrapAuthorization {
   };
 }
 
+export interface CapabilityRequirement {
+  id: string;
+  mechanism: "skill" | "tool" | "connector" | "model" | "modality" | "plugin" | "mcp" | "api" | "policy";
+  description?: string;
+}
+
 export interface ExecutionContext {
   taskId: string;
   agentId: string;
@@ -39,4 +45,22 @@ export interface TaskLease {
   holderAgentId: string;
   acquiredAt: string;
   expiresAt: string;
+}
+
+export interface LeasedWork {
+  work_id: string;
+  work_packet_id: string;
+  task_id: string;
+  tenant_id: string;
+  requested_by: string;
+  action_class: "READ_ONLY" | "NON_PRODUCTION_MUTATION" | "PROTECTED_MUTATION" | "PRODUCTION_RELEASE";
+  required_capabilities: CapabilityRequirement[];
+  payload: Record<string, unknown>;
+  source_sha?: string | null;
+  idempotency_key: string;
+  approval_reference?: string | null;
+  validation_receipt_id?: string | null;
+  rollback_reference?: string | null;
+  attempt: number;
+  lease: TaskLease;
 }
