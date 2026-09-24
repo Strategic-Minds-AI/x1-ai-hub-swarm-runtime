@@ -1,0 +1,10 @@
+{
+  "work_packet_id":"WP-20260924-X1-PREVIEW-INTEGRATION",
+  "layer":"railway_build",
+  "failed_deployment_id":"f1084f4c-5c77-45a0-b343-e6c3cdb701fd",
+  "source_sha":"ccba670315736e75c4268f0f4b3edde3b073ea7f",
+  "failure":"tsc: not found",
+  "classification":"PACKAGING",
+  "repair":"pin typescript 5.9.2 as build/runtime dependency so provider builds are self-contained",
+  "production_mutation":false
+}

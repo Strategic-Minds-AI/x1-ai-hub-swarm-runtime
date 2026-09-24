@@ -1,0 +1,518 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AgentEmployeeRegistry",
+  "version": "1.0.0",
+  "total_agent_roles": 35,
+  "independent_validators_count": 3,
+  "roles": [
+    {
+      "prompt_id": "01_orchestrator",
+      "name": "Orchestrator",
+      "type": "PERSISTENT",
+      "validator": false,
+      "purpose": "Own plan/state transitions, compile WorkPackets, enforce action classes and reconcile loop.",
+      "action_classes": [
+        "PLAN_MUTATION",
+        "WORKPACKET_COMPILE",
+        "RECONCILE"
+      ],
+      "forbidden": [
+        "SELF_CERTIFICATION",
+        "PRODUCTION_RELEASE"
+      ],
+      "spending_cap_daily": 50.0
+    },
+    {
+      "prompt_id": "02_discovery",
+      "name": "Discovery",
+      "type": "EPHEMERAL",
+      "validator": false,
+      "purpose": "Inventory sources, competitors/benchmarks, current state, gaps, risks and evidence without mutation.",
+      "action_classes": [
+        "READ_ONLY_INVENTORY"
+      ],
+      "forbidden": [
+        "STATE_MUTATION",
+        "CODE_WRITE"
+      ],
+      "spending_cap_daily": 20.0
+    },
+    {
+      "prompt_id": "03_architect",
+      "name": "Architect",
+      "type": "PERSISTENT",
+      "validator": false,
+      "purpose": "Design contracts, boundaries, schemas, dependency graph and nonfunctional requirements.",
+      "action_classes": [
+        "SCHEMA_DESIGN",
+        "CONTRACT_SPECIFICATION"
+      ],
+      "forbidden": [
+        "DIRECT_PRODUCTION_MUTATION"
+      ],
+      "spending_cap_daily": 30.0
+    },
+    {
+      "prompt_id": "04_business_strategist",
+      "name": "Business Strategist",
+      "type": "EPHEMERAL",
+      "validator": false,
+      "purpose": "Maintain vision, offer, market wedge, business model, pricing hypotheses, metrics and risks.",
+      "action_classes": [
+        "BUSINESS_ANALYSIS"
+      ],
+      "forbidden": [
+        "TECHNICAL_STATE_MUTATION"
+      ],
+      "spending_cap_daily": 20.0
+    },
+    {
+      "prompt_id": "05_brand_guardian",
+      "name": "Brand Guardian",
+      "type": "EPHEMERAL",
+      "validator": false,
+      "purpose": "Enforce X1 AI brand lock, Signal Command Center tokens, content claims and visual variance rules.",
+      "action_classes": [
+        "BRAND_VALIDATION",
+        "TOKEN_ENFORCEMENT"
+      ],
+      "forbidden": [
+        "SCHEMA_MUTATION"
+      ],
+      "spending_cap_daily": 20.0
+    },
+    {
+      "prompt_id": "06_base44_superagent",
+      "name": "Base44 Superagent",
+      "type": "PERSISTENT",
+      "validator": false,
+      "purpose": "Implement approved bounded Vite frontend/backend BuildPackets while keeping GitHub authoritative.",
+      "action_classes": [
+        "BASE44_APP_BUILD",
+        "SCAFFOLD_APPLY"
+      ],
+      "forbidden": [
+        "UNAPPROVED_PROD_DEPLOY"
+      ],
+      "spending_cap_daily": 100.0
+    },
+    {
+      "prompt_id": "07_frontend_builder",
+      "name": "Frontend Builder",
+      "type": "EPHEMERAL",
+      "validator": false,
+      "purpose": "Build approved UI components/routes only; stable test IDs and observable postconditions required.",
+      "action_classes": [
+        "UI_COMPONENT_BUILD"
+      ],
+      "forbidden": [
+        "BACKEND_SCHEMA_MUTATION"
+      ],
+      "spending_cap_daily": 40.0
+    },
+    {
+      "prompt_id": "08_backend_builder",
+      "name": "Backend Builder",
+      "type": "EPHEMERAL",
+      "validator": false,
+      "purpose": "Build API/data adapters from contracts; no secret or production mutation shortcuts.",
+      "action_classes": [
+        "API_ADAPTER_BUILD"
+      ],
+      "forbidden": [
+        "SECRET_LEAKAGE"
+      ],
+      "spending_cap_daily": 40.0
+    },
+    {
+      "prompt_id": "09_supabase_architect",
+      "name": "Supabase Architect",
+      "type": "PERSISTENT",
+      "validator": false,
+      "purpose": "Design migrations, RLS, tenant boundaries, indexes, backups and testable data contracts.",
+      "action_classes": [
+        "MIGRATION_DESIGN",
+        "RLS_POLICY_GEN"
+      ],
+      "forbidden": [
+        "UNSAFE_DROP_TABLE"
+      ],
+      "spending_cap_daily": 50.0
+    },
+    {
+      "prompt_id": "10_vercel_workflow_engineer",
+      "name": "Vercel Workflow Engineer",
+      "type": "EPHEMERAL",
+      "validator": false,
+      "purpose": "Implement durable 5-minute reconcile workflow, leases, idempotency and receipts.",
+      "action_classes": [
+        "WORKFLOW_BUILD"
+      ],
+      "forbidden": [
+        "UNBOUNDED_RETRY"
+      ],
+      "spending_cap_daily": 40.0
+    },
+    {
+      "prompt_id": "11_railway_worker_engineer",
+      "name": "Railway Worker Engineer",
+      "type": "EPHEMERAL",
+      "validator": false,
+      "purpose": "Implement long-running workers, health, queues, retries, dead letters and cost controls.",
+      "action_classes": [
+        "WORKER_BUILD"
+      ],
+      "forbidden": [
+        "UNLIMITED_SPEND_SPAWN"
+      ],
+      "spending_cap_daily": 50.0
+    },
+    {
+      "prompt_id": "12_mcp_gateway_engineer",
+      "name": "MCP Gateway Engineer",
+      "type": "EPHEMERAL",
+      "validator": false,
+      "purpose": "Implement host-first MCP auth, allowlists, routing, quotas, policy and evidence envelopes.",
+      "action_classes": [
+        "MCP_ROUTER_BUILD"
+      ],
+      "forbidden": [
+        "ALLOWLIST_BYPASS"
+      ],
+      "spending_cap_daily": 40.0
+    },
+    {
+      "prompt_id": "13_protocol_engineer",
+      "name": "Protocol Engineer",
+      "type": "PERSISTENT",
+      "validator": false,
+      "purpose": "Own versioned machine schemas and compatibility; propagate breaking changes across dependents.",
+      "action_classes": [
+        "SCHEMA_VERSIONING"
+      ],
+      "forbidden": [
+        "SILENT_BREAKING_CHANGE"
+      ],
+      "spending_cap_daily": 40.0
+    },
+    {
+      "prompt_id": "14_memory_engineer",
+      "name": "Memory Engineer",
+      "type": "EPHEMERAL",
+      "validator": false,
+      "purpose": "Own scoped memory, provenance, retrieval, retention, deletion and privacy contracts.",
+      "action_classes": [
+        "MEMORY_INDEX_BUILD"
+      ],
+      "forbidden": [
+        "CROSS_TENANT_LEAKAGE"
+      ],
+      "spending_cap_daily": 30.0
+    },
+    {
+      "prompt_id": "15_catalog_curator",
+      "name": "Catalog Curator",
+      "type": "EPHEMERAL",
+      "validator": false,
+      "purpose": "Ingest/score/dedupe/rights-check tools, skills, workflows, prompts, generators and packs.",
+      "action_classes": [
+        "CATALOG_INGESTION"
+      ],
+      "forbidden": [
+        "UNLICENSED_ASSET_PUBLISH"
+      ],
+      "spending_cap_daily": 30.0
+    },
+    {
+      "prompt_id": "16_swarm_orchestrator",
+      "name": "Swarm Orchestrator",
+      "type": "PERSISTENT",
+      "validator": false,
+      "purpose": "Lease ephemeral agents/tasks; enforce budgets/timeouts/dependencies; never self-certify.",
+      "action_classes": [
+        "TASK_LEASE_DISPATCH"
+      ],
+      "forbidden": [
+        "SELF_CERTIFICATION",
+        "OVER_BUDGET_DISPATCH"
+      ],
+      "spending_cap_daily": 80.0
+    },
+    {
+      "prompt_id": "17_sandbox_engineer",
+      "name": "Sandbox Engineer",
+      "type": "EPHEMERAL",
+      "validator": false,
+      "purpose": "Own nonproduction execution isolation, resource/network limits and deterministic cleanup.",
+      "action_classes": [
+        "SANDBOX_PROVISION"
+      ],
+      "forbidden": [
+        "SSRF_ALLOW_ALL"
+      ],
+      "spending_cap_daily": 40.0
+    },
+    {
+      "prompt_id": "18_eval_validator",
+      "name": "Eval Validator",
+      "type": "INDEPENDENT_VALIDATOR",
+      "validator": true,
+      "purpose": "Independent validator. Evidence only. Cannot edit implementation during validation.",
+      "action_classes": [
+        "VALIDATION_RECEIPT_EMIT",
+        "EVAL_RUN"
+      ],
+      "forbidden": [
+        "CODE_MUTATION",
+        "SELF_VALIDATION"
+      ],
+      "spending_cap_daily": 50.0
+    },
+    {
+      "prompt_id": "19_security_auditor",
+      "name": "Security Auditor",
+      "type": "INDEPENDENT_VALIDATOR",
+      "validator": true,
+      "purpose": "Threat-model, test tenant/RLS/SSRF/secrets/replay/rate-limit/budget/abuse controls.",
+      "action_classes": [
+        "SECURITY_AUDIT_RUN",
+        "THREAT_MODEL_GEN"
+      ],
+      "forbidden": [
+        "CODE_MUTATION",
+        "CREDENTIAL_EXPOSURE"
+      ],
+      "spending_cap_daily": 50.0
+    },
+    {
+      "prompt_id": "20_repair_agent",
+      "name": "Repair Agent",
+      "type": "EPHEMERAL",
+      "validator": false,
+      "purpose": "Apply smallest reversible nonproduction repair; max 3 attempts; never certify own change.",
+      "action_classes": [
+        "NONPROD_REPAIR_APPLY"
+      ],
+      "forbidden": [
+        "CERTIFY_OWN_REPAIR",
+        "EXCEED_3_REPAIRS"
+      ],
+      "spending_cap_daily": 40.0
+    },
+    {
+      "prompt_id": "21_cloud_browser_validator",
+      "name": "Cloud Browser Validator",
+      "type": "INDEPENDENT_VALIDATOR",
+      "validator": true,
+      "purpose": "Use Xtreme Cloud Browser for user journeys/screenshots/console/network/accessibility/visual evidence.",
+      "action_classes": [
+        "BROWSER_EVIDENCE_CAPTURE"
+      ],
+      "forbidden": [
+        "CODE_MUTATION"
+      ],
+      "spending_cap_daily": 60.0
+    },
+    {
+      "prompt_id": "22_growth_strategist",
+      "name": "Growth Strategist",
+      "type": "EPHEMERAL",
+      "validator": false,
+      "purpose": "Create measurable acquisition loops based on useful demos, referrals, SDK and community.",
+      "action_classes": [
+        "GROWTH_LOOP_DESIGN"
+      ],
+      "forbidden": [
+        "SPAM_COMMUNICATION"
+      ],
+      "spending_cap_daily": 20.0
+    },
+    {
+      "prompt_id": "23_digital_dominance",
+      "name": "Digital Dominance",
+      "type": "EPHEMERAL",
+      "validator": false,
+      "purpose": "Generate SEO/AEO assets only when each page provides unique utility; reject doorway/thin scaling.",
+      "action_classes": [
+        "SEO_ASSET_GENERATE"
+      ],
+      "forbidden": [
+        "THIN_CONTENT_DUPLICATION"
+      ],
+      "spending_cap_daily": 20.0
+    },
+    {
+      "prompt_id": "24_social_os",
+      "name": "Social OS",
+      "type": "EPHEMERAL",
+      "validator": false,
+      "purpose": "Discover trends, draft/atomize content, validate facts/brand and schedule only within approval policy.",
+      "action_classes": [
+        "CONTENT_DRAFT_GENERATE"
+      ],
+      "forbidden": [
+        "UNAPPROVED_PUBLIC_POST"
+      ],
+      "spending_cap_daily": 20.0
+    },
+    {
+      "prompt_id": "25_virality",
+      "name": "Virality",
+      "type": "EPHEMERAL",
+      "validator": false,
+      "purpose": "Design product-led sharing, challenges, receipts, referrals and collaboration loops; measure coefficient.",
+      "action_classes": [
+        "VIRALITY_LOOP_DESIGN"
+      ],
+      "forbidden": [
+        "DARK_PATTERN_PROMOTION"
+      ],
+      "spending_cap_daily": 20.0
+    },
+    {
+      "prompt_id": "26_monetization",
+      "name": "Monetization",
+      "type": "PERSISTENT",
+      "validator": false,
+      "purpose": "Manage plans, entitlements, credits, promos, marketplace economics and margin guardrails.",
+      "action_classes": [
+        "MONETIZATION_CONFIG"
+      ],
+      "forbidden": [
+        "UNAUTHORIZED_DISCOUNT_GRANT"
+      ],
+      "spending_cap_daily": 30.0
+    },
+    {
+      "prompt_id": "27_cost_optimizer",
+      "name": "Cost Optimizer",
+      "type": "PERSISTENT",
+      "validator": false,
+      "purpose": "Optimize model/browser/worker/storage spend per verified outcome without lowering hard gates.",
+      "action_classes": [
+        "COST_AUDIT_ANALYZE"
+      ],
+      "forbidden": [
+        "LOWER_HARD_GATES"
+      ],
+      "spending_cap_daily": 20.0
+    },
+    {
+      "prompt_id": "28_community_gamification",
+      "name": "Community Gamification",
+      "type": "EPHEMERAL",
+      "validator": false,
+      "purpose": "Design rooms, badges, verified accomplishments, seasons and paper/testnet challenges.",
+      "action_classes": [
+        "GAMIFICATION_DESIGN"
+      ],
+      "forbidden": [
+        "REAL_MONEY_GAMBLING"
+      ],
+      "spending_cap_daily": 20.0
+    },
+    {
+      "prompt_id": "29_release_manager",
+      "name": "Release Manager",
+      "type": "PERSISTENT",
+      "validator": false,
+      "purpose": "Confirm VERIFIED_100 + approval; prepare rollback and smoke plan; never self-authorize release.",
+      "action_classes": [
+        "RELEASE_PREPARE"
+      ],
+      "forbidden": [
+        "SELF_AUTHORIZE_RELEASE"
+      ],
+      "spending_cap_daily": 50.0
+    },
+    {
+      "prompt_id": "30_incident_commander",
+      "name": "Incident Commander",
+      "type": "PERSISTENT",
+      "validator": false,
+      "purpose": "Contain, preserve evidence, classify severity, stop unsafe automation and coordinate recovery.",
+      "action_classes": [
+        "INCIDENT_FREEZE",
+        "CIRCUIT_BREAKER_TRIP"
+      ],
+      "forbidden": [
+        "EVIDENCE_DESTRUCTION"
+      ],
+      "spending_cap_daily": 100.0
+    },
+    {
+      "prompt_id": "31_documentation",
+      "name": "Documentation",
+      "type": "EPHEMERAL",
+      "validator": false,
+      "purpose": "Keep human/machine docs, manifests, examples and handoffs synchronized with source changes.",
+      "action_classes": [
+        "DOCUMENTATION_GENERATE"
+      ],
+      "forbidden": [
+        "MISREPRESENT_STATE"
+      ],
+      "spending_cap_daily": 20.0
+    },
+    {
+      "prompt_id": "32_passive_intelligence",
+      "name": "Passive Intelligence",
+      "type": "EPHEMERAL",
+      "validator": false,
+      "purpose": "Ingest current ecosystem/security/pricing/search/social signals and create proposals, not silent production mutations.",
+      "action_classes": [
+        "SIGNAL_INGEST_PROPOSE"
+      ],
+      "forbidden": [
+        "SILENT_PROD_MUTATION"
+      ],
+      "spending_cap_daily": 20.0
+    },
+    {
+      "prompt_id": "33_dependency_impact_analyzer",
+      "name": "Dependency Impact Analyzer",
+      "type": "EPHEMERAL",
+      "validator": false,
+      "purpose": "Expand change graph, identify invalidated artifacts/tests, block incomplete ecosystem changes.",
+      "action_classes": [
+        "IMPACT_ANALYSIS_RUN"
+      ],
+      "forbidden": [
+        "MUTATION_BYPASS"
+      ],
+      "spending_cap_daily": 30.0
+    },
+    {
+      "prompt_id": "34_change_propagation",
+      "name": "Change Propagation",
+      "type": "EPHEMERAL",
+      "validator": false,
+      "purpose": "Coordinate multi-repo counterpart updates from one contract change with versioned receipts.",
+      "action_classes": [
+        "MULTI_REPO_SYNC_PROPAGATE"
+      ],
+      "forbidden": [
+        "UNVAL_MULTI_REPO_PUSH"
+      ],
+      "spending_cap_daily": 40.0
+    },
+    {
+      "prompt_id": "35_human_handoff",
+      "name": "Human Handoff",
+      "type": "PERSISTENT",
+      "validator": false,
+      "purpose": "Produce concise state, decisions, verified evidence, blockers, rollback and exact next action for continuity.",
+      "action_classes": [
+        "HANDOFF_BUNDLE_GENERATE"
+      ],
+      "forbidden": [
+        "FAKE_EVIDENCE_REPORT"
+      ],
+      "spending_cap_daily": 30.0
+    }
+  ],
+  "validator_separation_policy": {
+    "rule": "Independent Validator Separation Rule",
+    "enforcement": "An agent that executes mutations on a WorkPacket CANNOT validate or emit a PASS receipt for that same WorkPacket. Validation receipts must be signed by an independent validator (Eval Validator, Security Auditor, or Cloud Browser Validator)."
+  }
+}
