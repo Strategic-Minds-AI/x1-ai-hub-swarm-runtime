@@ -32,6 +32,12 @@ function validateConfig(config: ControlPlaneClientConfig): void {
   if(!config.internalServiceToken) throw new Error("CONTROL_PLANE_INTERNAL_TOKEN_REQUIRED");
 }
 
+function endpointFor(baseUrl:string):string {
+  const trimmed=baseUrl.replace(/\/$/,"");
+  if(trimmed.includes("/functions/v1/")) return trimmed;
+  return `${trimmed}/api/authorize`;
+}
+
 export class ControlPlaneClient {
   constructor(private readonly config: ControlPlaneClientConfig) {
     validateConfig(config);
@@ -39,7 +45,7 @@ export class ControlPlaneClient {
 
   async requestMandatoryAuthorization(input: AuthorizationRequest): Promise<BootstrapAuthorization> {
     const response=await resolveFetch(this.config)(
-      `${this.config.baseUrl.replace(/\/$/,"")}/api/authorize`,
+      endpointFor(this.config.baseUrl),
       {
         method:"POST",
         headers:{
