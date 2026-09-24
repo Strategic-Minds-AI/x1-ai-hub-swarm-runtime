@@ -5,6 +5,7 @@ declare const process: {
   on(event:"SIGTERM"|"SIGINT", handler:()=>void): void;
 };
 
+import { createHash } from "node:crypto";
 import { createServer } from "node:http";
 import { ControlPlaneClient } from "./control-plane-client.js";
 import { SupabaseWorkQueue } from "./work-queue-client.js";
@@ -27,7 +28,9 @@ const tenantId=required("X1_SYSTEM_TENANT_ID");
 const controlPlaneUrl=required("X1_CONTROL_PLANE_URL");
 const dbGatewayUrl=required("X1_DB_GATEWAY_URL");
 const internalToken=required("X1_INTERNAL_SERVICE_TOKEN");
-const signingKey=required("CAPABILITY_BOOTSTRAP_SIGNING_KEY");
+const signingKey=createHash("sha256")
+  .update(`project-zero-bootstrap-signing-v1:${internalToken}`)
+  .digest("hex");
 
 const queue=new SupabaseWorkQueue({
   gatewayUrl:dbGatewayUrl,
