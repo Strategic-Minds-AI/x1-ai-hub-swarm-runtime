@@ -5,3 +5,13 @@ declare module "node:crypto" {
   };
   export function timingSafeEqual(a: Uint8Array, b: Uint8Array): boolean;
 }
+declare module "node:http" {
+  export function createServer(handler:(req:{url?:string},res:{
+    statusCode:number;
+    setHeader(name:string,value:string):void;
+    end(body?:string):void;
+  })=>void): {
+    listen(port:number,host:string):void;
+    close(callback:()=>void):void;
+  };
+}

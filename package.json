@@ -6,6 +6,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "npm run typecheck && npm run build && node --test tests/*.test.mjs"
+    "test": "npm run typecheck && npm run build && node --test tests/*.test.mjs",
+    "start": "node dist/worker-main.js"
   }
 }
