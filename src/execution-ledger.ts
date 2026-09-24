@@ -7,9 +7,9 @@ export interface ExecutionRecord {
 }
 
 export interface ExecutionLedger {
-  tryStart(taskId: string, leaseId: string): boolean;
-  complete(taskId: string, leaseId: string): void;
-  fail(taskId: string, leaseId: string): void;
+  tryStart(taskId: string, leaseId: string): boolean | Promise<boolean>;
+  complete(taskId: string, leaseId: string): void | Promise<void>;
+  fail(taskId: string, leaseId: string, error?: unknown): void | Promise<void>;
 }
 
 export class InMemoryExecutionLedger implements ExecutionLedger {

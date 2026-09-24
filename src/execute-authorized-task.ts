@@ -23,16 +23,16 @@ export async function executeAuthorizedTask<T>(input: AuthorizedTaskInput<T>): P
   verifyBootstrapAuthorization(input.authorization, input.context, input.signingKey, now);
   verifyLease(input.lease, input.context, now);
 
-  if (!input.ledger.tryStart(input.context.taskId, input.lease.leaseId)) {
+  if (!(await input.ledger.tryStart(input.context.taskId, input.lease.leaseId))) {
     throw new Error("DUPLICATE_EXECUTION");
   }
 
   try {
     const output = await input.handler();
-    input.ledger.complete(input.context.taskId, input.lease.leaseId);
+    await input.ledger.complete(input.context.taskId, input.lease.leaseId);
     return output;
   } catch (error) {
-    input.ledger.fail(input.context.taskId, input.lease.leaseId);
+    await input.ledger.fail(input.context.taskId, input.lease.leaseId, error);
     throw error;
   }
 }
