@@ -12,8 +12,10 @@ export type HttpFetchLike = (
 ) => Promise<HttpResponseLike>;
 
 export interface SupabaseExecutionLedgerConfig {
-  url: string;
-  serviceRoleKey: string;
+  url?: string;
+  serviceRoleKey?: string;
+  gatewayUrl?: string;
+  internalServiceToken?: string;
   tenantId: string;
   agentId: string;
   idempotencyKey: string;
@@ -30,8 +32,9 @@ function resolveFetch(config: SupabaseExecutionLedgerConfig): HttpFetchLike {
 }
 
 function validateConfig(config: SupabaseExecutionLedgerConfig): void {
-  if (!config.url) throw new Error("SUPABASE_URL_REQUIRED");
-  if (!config.serviceRoleKey) throw new Error("SUPABASE_SERVICE_ROLE_KEY_REQUIRED");
+  const direct=Boolean(config.url && config.serviceRoleKey);
+  const gateway=Boolean(config.gatewayUrl && config.internalServiceToken);
+  if (!direct && !gateway) throw new Error("SUPABASE_EXECUTION_TRANSPORT_REQUIRED");
   if (!config.tenantId || !config.agentId || !config.idempotencyKey) throw new Error("SUPABASE_EXECUTION_CONTEXT_REQUIRED");
   if (!Number.isInteger(config.attempt) || config.attempt <= 0) throw new Error("SUPABASE_EXECUTION_ATTEMPT_INVALID");
 }
@@ -44,12 +47,32 @@ export class SupabaseExecutionLedger implements ExecutionLedger {
   }
 
   private async rpc(name: string, body: Record<string, unknown>): Promise<unknown> {
-    const response = await resolveFetch(this.config)(
-      `${this.config.url.replace(/\/$/, "")}/rest/v1/rpc/${name}`,
+    const fetchImpl=resolveFetch(this.config);
+    if(this.config.gatewayUrl && this.config.internalServiceToken) {
+      const response=await fetchImpl(this.config.gatewayUrl,{
+        method:"POST",
+        headers:{
+          Authorization:`Bearer ${this.config.internalServiceToken}`,
+          "Content-Type":"application/json",
+          Accept:"application/json",
+        },
+        body:JSON.stringify({op:"rpc",name,body}),
+      });
+      const text=await response.text();
+      let parsed:any={};
+      try { parsed=text ? JSON.parse(text) : {}; } catch {}
+      if(!response.ok || parsed?.ok!==true) {
+        throw new Error(`SUPABASE_GATEWAY_FAILED:${response.status}:${parsed?.code ?? "UNKNOWN"}`);
+      }
+      return parsed.data ?? null;
+    }
+
+    const response = await fetchImpl(
+      `${this.config.url!.replace(/\/$/, "")}/rest/v1/rpc/${name}`,
       {
         method: "POST",
         headers: {
-          apikey: this.config.serviceRoleKey,
+          apikey: this.config.serviceRoleKey!,
           Authorization: `Bearer ${this.config.serviceRoleKey}`,
           "Content-Type": "application/json",
           Accept: "application/json",
@@ -63,9 +86,7 @@ export class SupabaseExecutionLedger implements ExecutionLedger {
       try {
         const parsed = text ? JSON.parse(text) as { code?: string } : {};
         code = parsed.code ?? code;
-      } catch {
-        // Provider body deliberately not included in thrown error.
-      }
+      } catch {}
       if (code === "23505") return { duplicate: true };
       throw new Error(`SUPABASE_RPC_FAILED:${response.status}:${code}`);
     }
