@@ -18,8 +18,10 @@ export interface WorkerOrchestratorConfig {
   queue: SupabaseWorkQueue;
   controlPlane: ControlPlaneClient;
   bootstrapSigningKey: string;
-  serviceRoleKey: string;
-  supabaseUrl: string;
+  serviceRoleKey?: string;
+  supabaseUrl?: string;
+  gatewayUrl?: string;
+  internalServiceToken?: string;
   workerId: string;
   handler: (work: LeasedWork) => Promise<unknown> | unknown;
   ledgerFactory?: (work: LeasedWork) => ExecutionLedger;
@@ -72,6 +74,8 @@ export async function processNextWork<T=unknown>(
   const ledger=config.ledgerFactory?.(work) ?? new SupabaseExecutionLedger({
     url:config.supabaseUrl,
     serviceRoleKey:config.serviceRoleKey,
+    gatewayUrl:config.gatewayUrl,
+    internalServiceToken:config.internalServiceToken,
     tenantId:work.tenant_id,
     agentId:config.workerId,
     idempotencyKey:work.idempotency_key,
