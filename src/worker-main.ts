@@ -1,5 +1,9 @@
 /// <reference lib="dom" />
-declare const process: { env: Record<string,string|undefined> };
+declare const process: {
+  env: Record<string,string|undefined>;
+  exit(code?:number): never;
+  on(event:"SIGTERM"|"SIGINT", handler:()=>void): void;
+};
 
 import { createServer } from "node:http";
 import { ControlPlaneClient } from "./control-plane-client.js";
@@ -55,7 +59,6 @@ async function tick():Promise<void> {
       supabaseUrl,
       workerId,
       handler:async(work)=>{
-        // Preview bridge only. Real specialist/MCP dispatch remains separately gated.
         if(work.action_class!=="READ_ONLY") throw new Error("NO_PREVIEW_HANDLER_FOR_MUTATION");
         return {acknowledged:true,workPacketId:work.work_packet_id,taskId:work.task_id};
       },
@@ -98,7 +101,7 @@ function shutdown():void {
   stopping=true;
   clearInterval(timer);
   server.close(()=>process.exit(0));
-  setTimeout(()=>process.exit(1),5000).unref();
+  setTimeout(()=>process.exit(1),5000);
 }
 
 process.on("SIGTERM",shutdown);
