@@ -2,8 +2,10 @@ import type { LeasedWork } from "./types.js";
 import type { HttpFetchLike } from "./supabase-execution-ledger.js";
 
 export interface SupabaseWorkQueueConfig {
-  url: string;
-  serviceRoleKey: string;
+  url?: string;
+  serviceRoleKey?: string;
+  gatewayUrl?: string;
+  internalServiceToken?: string;
   tenantId: string;
   workerId: string;
   environment: "development" | "preview" | "production";
@@ -19,8 +21,9 @@ function resolveFetch(config: SupabaseWorkQueueConfig): HttpFetchLike {
 }
 
 function validateConfig(config: SupabaseWorkQueueConfig): void {
-  if(!config.url) throw new Error("SUPABASE_URL_REQUIRED");
-  if(!config.serviceRoleKey) throw new Error("SUPABASE_SERVICE_ROLE_KEY_REQUIRED");
+  const direct=Boolean(config.url && config.serviceRoleKey);
+  const gateway=Boolean(config.gatewayUrl && config.internalServiceToken);
+  if(!direct && !gateway) throw new Error("WORK_QUEUE_TRANSPORT_REQUIRED");
   if(!config.tenantId || !config.workerId) throw new Error("WORK_QUEUE_CONTEXT_REQUIRED");
   const ttl=config.leaseTtlSeconds ?? 300;
   if(!Number.isInteger(ttl) || ttl<30 || ttl>600) throw new Error("WORK_QUEUE_LEASE_TTL_INVALID");
@@ -32,12 +35,32 @@ export class SupabaseWorkQueue {
   }
 
   private async rpc(name:string,body:Record<string,unknown>): Promise<unknown> {
-    const response=await resolveFetch(this.config)(
-      `${this.config.url.replace(/\/$/,"")}/rest/v1/rpc/${name}`,
+    const fetchImpl=resolveFetch(this.config);
+    if(this.config.gatewayUrl && this.config.internalServiceToken) {
+      const response=await fetchImpl(this.config.gatewayUrl,{
+        method:"POST",
+        headers:{
+          Authorization:`Bearer ${this.config.internalServiceToken}`,
+          "Content-Type":"application/json",
+          Accept:"application/json",
+        },
+        body:JSON.stringify({op:"rpc",name,body}),
+      });
+      const text=await response.text();
+      let parsed:any={};
+      try { parsed=text ? JSON.parse(text) : {}; } catch {}
+      if(!response.ok || parsed?.ok!==true) {
+        throw new Error(`WORK_QUEUE_GATEWAY_FAILED:${response.status}:${parsed?.code ?? "UNKNOWN"}`);
+      }
+      return parsed.data ?? null;
+    }
+
+    const response=await fetchImpl(
+      `${this.config.url!.replace(/\/$/,"")}/rest/v1/rpc/${name}`,
       {
         method:"POST",
         headers:{
-          apikey:this.config.serviceRoleKey,
+          apikey:this.config.serviceRoleKey!,
           Authorization:`Bearer ${this.config.serviceRoleKey}`,
           "Content-Type":"application/json",
           Accept:"application/json",
