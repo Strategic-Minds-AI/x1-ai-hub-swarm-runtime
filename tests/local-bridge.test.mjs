@@ -21,7 +21,7 @@ function leasedWork(overrides={}) {
     required_capabilities:[],
     payload:{execution_target:"jarvis-local",local_agent:"code_architect",local_task_type:"agent_request"},
     source_sha:"test-sha",
-    idempotency_key:"power-grid-test-idempotency",
+    idempotency_key:"a".repeat(64),
     attempt:1,
     lease:{
       leaseId:"lease-1",
@@ -76,5 +76,60 @@ test("dispatch fails closed for mutation action classes", async()=>{
   await assert.rejects(
     dispatcher.dispatch(leasedWork({action_class:"NON_PRODUCTION_MUTATION"})),
     /LOCAL_BRIDGE_READ_ONLY_REQUIRED/,
+  );
+});
+
+test("dispatch blocks production-tagged payloads", async()=>{
+  const dispatcher=new LocalControlPlaneDispatcher({
+    baseUrl:"http://local-control",
+    fetchImpl:async()=>response({}),
+  });
+  await assert.rejects(
+    dispatcher.dispatch(leasedWork({payload:{execution_target:"jarvis-local",environment:"production"}})),
+    /LOCAL_BRIDGE_ENVIRONMENT_BLOCKED/,
+  );
+});
+
+test("dispatch blocks unapproved local task types", async()=>{
+  const dispatcher=new LocalControlPlaneDispatcher({
+    baseUrl:"http://local-control",
+    fetchImpl:async()=>response({}),
+  });
+  await assert.rejects(
+    dispatcher.dispatch(leasedWork({payload:{execution_target:"jarvis-local",local_task_type:"shell"}})),
+    /LOCAL_BRIDGE_TASK_TYPE_NOT_ALLOWED/,
+  );
+});
+
+test("dispatch rejects secret-like payload keys", async()=>{
+  const dispatcher=new LocalControlPlaneDispatcher({
+    baseUrl:"http://local-control",
+    fetchImpl:async()=>response({}),
+  });
+  await assert.rejects(
+    dispatcher.dispatch(leasedWork({payload:{execution_target:"jarvis-local",nested:{api_key:"forbidden"}}})),
+    /LOCAL_BRIDGE_SENSITIVE_PAYLOAD_KEY/,
+  );
+});
+
+test("dispatch rejects malformed idempotency keys", async()=>{
+  const dispatcher=new LocalControlPlaneDispatcher({
+    baseUrl:"http://local-control",
+    fetchImpl:async()=>response({}),
+  });
+  await assert.rejects(
+    dispatcher.dispatch(leasedWork({idempotency_key:"not-a-hash"})),
+    /LOCAL_BRIDGE_IDEMPOTENCY_INVALID/,
+  );
+});
+
+test("dispatch rejects oversized packets", async()=>{
+  const dispatcher=new LocalControlPlaneDispatcher({
+    baseUrl:"http://local-control",
+    fetchImpl:async()=>response({}),
+  });
+  await assert.rejects(
+    dispatcher.dispatch(leasedWork({payload:{execution_target:"jarvis-local",note:"x".repeat(70000)}})),
+    /LOCAL_BRIDGE_PAYLOAD_TOO_LARGE/,
   );
 });
