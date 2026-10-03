@@ -21,6 +21,13 @@ const ALLOWED_AGENTS = new Set([
   "validator",
 ]);
 
+const ALLOWED_TASK_TYPES = new Set(["agent_request"]);
+const ALLOWED_ENVIRONMENTS = new Set(["staging", "preview"]);
+const ALLOWED_STATUSES = new Set(["pending", "in_progress", "completed", "failed", "needs_approval"]);
+const MAX_PACKET_BYTES = 64 * 1024;
+const MAX_TEXT_FIELD = 512;
+const SENSITIVE_KEY_PATTERN = /(token|secret|password|api[_-]?key|authorization|cookie|private[_-]?key|service[_-]?role)/i;
+
 function resolveFetch(config: LocalControlPlaneDispatcherConfig): HttpFetchLike {
   const runtimeFetch=(globalThis as unknown as {fetch?:HttpFetchLike}).fetch;
   const fetchImpl=config.fetchImpl ?? runtimeFetch;
@@ -34,6 +41,48 @@ function cleanString(value: unknown, fallback: string): string {
 
 function sleep(ms:number):Promise<void> {
   return new Promise(resolve=>setTimeout(resolve,ms));
+}
+
+function assertText(value:unknown,label:string,max=MAX_TEXT_FIELD):string {
+  const cleaned=cleanString(value,"");
+  if(!cleaned || cleaned.length>max) throw new Error(`LOCAL_BRIDGE_${label}_INVALID`);
+  return cleaned;
+}
+
+function validatePayloadKeys(value:unknown,depth=0):void {
+  if(depth>8) throw new Error("LOCAL_BRIDGE_PAYLOAD_DEPTH_EXCEEDED");
+  if(Array.isArray(value)) {
+    for(const item of value) validatePayloadKeys(item,depth+1);
+    return;
+  }
+  if(!value || typeof value!=="object") return;
+  for(const [key,child] of Object.entries(value as Record<string,unknown>)) {
+    if(SENSITIVE_KEY_PATTERN.test(key)) throw new Error("LOCAL_BRIDGE_SENSITIVE_PAYLOAD_KEY");
+    validatePayloadKeys(child,depth+1);
+  }
+}
+
+function validateWorkEnvelope(work:LeasedWork):{agentName:string;taskType:string} {
+  if(work.action_class!=="READ_ONLY") throw new Error("LOCAL_BRIDGE_READ_ONLY_REQUIRED");
+  if(assertText(work.payload?.execution_target,"TARGET")!=="jarvis-local") {
+    throw new Error("LOCAL_BRIDGE_TARGET_MISMATCH");
+  }
+  const environment=cleanString(work.payload?.environment,"preview");
+  if(!ALLOWED_ENVIRONMENTS.has(environment)) throw new Error("LOCAL_BRIDGE_ENVIRONMENT_BLOCKED");
+  if(!/^[0-9a-f]{64}$/.test(work.idempotency_key)) throw new Error("LOCAL_BRIDGE_IDEMPOTENCY_INVALID");
+  assertText(work.work_packet_id,"WORK_PACKET_ID");
+  assertText(work.task_id,"TASK_ID");
+  assertText(work.requested_by,"REQUESTED_BY");
+  const payloadJson=JSON.stringify(work.payload ?? {});
+  if(new TextEncoder().encode(payloadJson).byteLength>MAX_PACKET_BYTES) {
+    throw new Error("LOCAL_BRIDGE_PAYLOAD_TOO_LARGE");
+  }
+  validatePayloadKeys(work.payload);
+  const agentName=assertText(work.payload?.local_agent ?? "orchestrator","AGENT");
+  if(!ALLOWED_AGENTS.has(agentName)) throw new Error("LOCAL_BRIDGE_AGENT_NOT_ALLOWED");
+  const taskType=assertText(work.payload?.local_task_type ?? "agent_request","TASK_TYPE");
+  if(!ALLOWED_TASK_TYPES.has(taskType)) throw new Error("LOCAL_BRIDGE_TASK_TYPE_NOT_ALLOWED");
+  return {agentName,taskType};
 }
 
 export class LocalControlPlaneDispatcher {
@@ -70,13 +119,7 @@ export class LocalControlPlaneDispatcher {
   }
 
   async dispatch(work:LeasedWork):Promise<Record<string,unknown>> {
-    if(work.action_class!=="READ_ONLY") throw new Error("LOCAL_BRIDGE_READ_ONLY_REQUIRED");
-    const target=cleanString(work.payload?.execution_target,"");
-    if(target!=="jarvis-local") throw new Error("LOCAL_BRIDGE_TARGET_MISMATCH");
-
-    const agentName=cleanString(work.payload?.local_agent,"orchestrator");
-    if(!ALLOWED_AGENTS.has(agentName)) throw new Error("LOCAL_BRIDGE_AGENT_NOT_ALLOWED");
-    const taskType=cleanString(work.payload?.local_task_type,"agent_request");
+    const {agentName,taskType}=validateWorkEnvelope(work);
 
     const created=await this.post("/api/entities/AgentTask/create",{
       data:{
@@ -104,7 +147,9 @@ export class LocalControlPlaneDispatcher {
 
     while(Date.now()-started<=this.timeoutMs) {
       const current=await this.post("/api/entities/AgentTask/get",{id:created.id});
-      const status=cleanString(current?.status,"unknown");
+      if(current?.id!==created.id) throw new Error("LOCAL_BRIDGE_TASK_ID_MISMATCH");
+      const status=cleanString(current?.status,"");
+      if(!ALLOWED_STATUSES.has(status)) throw new Error("LOCAL_BRIDGE_TASK_STATUS_INVALID");
       if(status==="completed") {
         return {
           localTaskId:created.id,
