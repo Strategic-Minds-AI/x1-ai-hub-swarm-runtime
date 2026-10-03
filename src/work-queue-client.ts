@@ -1,5 +1,7 @@
 import type { LeasedWork } from "./types.js";
 import type { HttpFetchLike } from "./supabase-execution-ledger.js";
+import type { RegisteredWorkerIdentity } from "./worker-identity.js";
+import { workerIdentityAssertionBody } from "./worker-identity.js";
 
 export interface SupabaseWorkQueueConfig {
   url?: string;
@@ -11,6 +13,8 @@ export interface SupabaseWorkQueueConfig {
   environment: "development" | "preview" | "production";
   leaseTtlSeconds?: number;
   fetchImpl?: HttpFetchLike;
+  requireRegisteredIdentity?: boolean;
+  workerIdentity?: RegisteredWorkerIdentity;
 }
 
 function resolveFetch(config: SupabaseWorkQueueConfig): HttpFetchLike {
@@ -27,6 +31,14 @@ function validateConfig(config: SupabaseWorkQueueConfig): void {
   if(!config.tenantId || !config.workerId) throw new Error("WORK_QUEUE_CONTEXT_REQUIRED");
   const ttl=config.leaseTtlSeconds ?? 300;
   if(!Number.isInteger(ttl) || ttl<30 || ttl>600) throw new Error("WORK_QUEUE_LEASE_TTL_INVALID");
+
+  if(config.requireRegisteredIdentity) {
+    const identity=config.workerIdentity;
+    if(!identity) throw new Error("WORKER_IDENTITY_REQUIRED");
+    if(identity.workerId!==config.workerId) throw new Error("WORKER_IDENTITY_WORKER_CONTEXT_MISMATCH");
+    if(identity.tenantId!==config.tenantId) throw new Error("WORKER_IDENTITY_TENANT_CONTEXT_MISMATCH");
+    if(identity.environment!==config.environment) throw new Error("WORKER_IDENTITY_ENVIRONMENT_CONTEXT_MISMATCH");
+  }
 }
 
 export class SupabaseWorkQueue {
@@ -77,7 +89,18 @@ export class SupabaseWorkQueue {
     return text ? JSON.parse(text) : null;
   }
 
+  private async assertRegisteredIdentity():Promise<void> {
+    if(!this.config.requireRegisteredIdentity) return;
+    const identity=this.config.workerIdentity;
+    if(!identity) throw new Error("WORKER_IDENTITY_REQUIRED");
+    const result=await this.rpc("x1_assert_worker_identity",workerIdentityAssertionBody(identity));
+    if(!result || typeof result!=="object" || (result as {ok?:boolean}).ok!==true) {
+      throw new Error("WORKER_IDENTITY_ASSERTION_REJECTED");
+    }
+  }
+
   async leaseNextWork(): Promise<LeasedWork | null> {
+    await this.assertRegisteredIdentity();
     const result=await this.rpc("x1_lease_next_work",{
       p_tenant_id:this.config.tenantId,
       p_worker_id:this.config.workerId,
