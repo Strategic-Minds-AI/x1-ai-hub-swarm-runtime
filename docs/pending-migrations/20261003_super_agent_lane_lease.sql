@@ -83,3 +83,6 @@ end;
 $function$;
 
 revoke all on function public.x1_lease_next_work_for_lane(uuid,text,text,text,integer) from public;
+revoke all on function public.x1_lease_next_work_for_lane(uuid,text,text,text,integer) from anon;
+revoke all on function public.x1_lease_next_work_for_lane(uuid,text,text,text,integer) from authenticated;
+grant execute on function public.x1_lease_next_work_for_lane(uuid,text,text,text,integer) to service_role;
