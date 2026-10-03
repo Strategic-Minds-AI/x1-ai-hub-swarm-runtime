@@ -10,6 +10,7 @@ import { createServer } from "node:http";
 import { ControlPlaneClient } from "./control-plane-client.js";
 import { SupabaseWorkQueue } from "./work-queue-client.js";
 import { processNextWork } from "./worker-orchestrator.js";
+import { parseSuperAgentLane } from "./super-agent-lanes.js";
 
 function required(name:string):string {
   const value=process.env[name];
@@ -20,8 +21,11 @@ function required(name:string):string {
 const port=Number(process.env.PORT ?? "3000");
 if(!Number.isInteger(port) || port<=0 || port>65535) throw new Error("PORT_INVALID");
 
-const workerId=process.env.X1_WORKER_ID ?? "x1-swarm-preview-1";
 const environment=(process.env.X1_RUNTIME_ENV ?? "preview") as "development"|"preview"|"production";
+const rawAgentLane=process.env.X1_AGENT_LANE;
+const agentLane=rawAgentLane ? parseSuperAgentLane(rawAgentLane) : undefined;
+if(rawAgentLane && !agentLane) throw new Error("X1_AGENT_LANE_INVALID");
+const workerId=process.env.X1_WORKER_ID ?? (agentLane ? `super-agent-${agentLane}-${environment}` : "x1-swarm-preview-1");
 if(!["development","preview","production"].includes(environment)) throw new Error("X1_RUNTIME_ENV_INVALID");
 
 const tenantId=required("X1_SYSTEM_TENANT_ID");
@@ -38,6 +42,7 @@ const queue=new SupabaseWorkQueue({
   tenantId,
   workerId,
   environment,
+  agentLane,
 });
 
 const controlPlane=new ControlPlaneClient({
@@ -62,7 +67,7 @@ async function tick():Promise<void> {
       workerId,
       handler:async(work)=>{
         if(work.action_class!=="READ_ONLY") throw new Error("NO_PREVIEW_HANDLER_FOR_MUTATION");
-        return {acknowledged:true,workPacketId:work.work_packet_id,taskId:work.task_id};
+        return {acknowledged:true,workPacketId:work.work_packet_id,taskId:work.task_id,agentLane:agentLane ?? null};
       },
     });
     lastTick={at:new Date().toISOString(),status:result.status,code:result.code};
@@ -88,7 +93,7 @@ const server=createServer((req,res)=>{
     const healthy=lastTick.status!=="FAILED";
     res.statusCode=healthy?200:503;
     res.setHeader("content-type","application/json");
-    res.end(JSON.stringify({ok:healthy,workerId,runtime:environment,lastTick}));
+    res.end(JSON.stringify({ok:healthy,workerId,runtime:environment,agentLane:agentLane ?? null,lastTick}));
     return;
   }
   res.statusCode=404;
