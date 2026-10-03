@@ -4,6 +4,12 @@
 
 begin;
 
+-- Fail closed before restoring the legacy lease function.
+update private.x1_worker_registry
+set enabled=false, updated_at=now()
+where worker_id='jarvis-local-power-grid-1'
+  and environment='preview';
+
 create or replace function public.x1_lease_next_work(
   p_tenant_id uuid,
   p_worker_id text,
