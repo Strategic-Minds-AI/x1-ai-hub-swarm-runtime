@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 
-export type WorkerExecutionPlane = "jarvis-local" | "railway" | "validator" | "cloud";
+export type WorkerExecutionPlane = "jarvis-local" | "local-ollama" | "railway" | "validator" | "cloud";
 export type WorkerRuntimeEnvironment = "development" | "preview" | "production";
 export type WorkerActionClass = "READ_ONLY" | "NON_PRODUCTION_MUTATION" | "PROTECTED_MUTATION" | "PRODUCTION_RELEASE";
 
