@@ -59,7 +59,7 @@ async function workerCredentialAuthorized(digest: string) {
 }
 
 async function authorized(req: Request) {
-  const token = (req.headers.get("authorization") || "").replace(/^Bearer\\s+/i, "");
+  const token = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
   if (!token) return false;
   const digest = await sha256Hex(token);
 
