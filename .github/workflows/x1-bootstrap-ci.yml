@@ -22,3 +22,9 @@ jobs:
         run: npm install --no-save typescript@5.9.2
       - name: Run executable validation
         run: npm test
+      - name: Build Super Agent Docker image
+        run: docker build -t x1-super-agent-ci .
+      - name: Validate Super Agent Compose topology
+        run: |
+          cp .env.super-agents.example .env.runtime
+          docker compose -f docker-compose.super-agents.yml config --quiet
