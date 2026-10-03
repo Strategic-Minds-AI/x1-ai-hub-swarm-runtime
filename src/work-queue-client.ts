@@ -9,6 +9,7 @@ export interface SupabaseWorkQueueConfig {
   tenantId: string;
   workerId: string;
   environment: "development" | "preview" | "production";
+  agentLane?: string;
   leaseTtlSeconds?: number;
   fetchImpl?: HttpFetchLike;
 }
@@ -78,12 +79,15 @@ export class SupabaseWorkQueue {
   }
 
   async leaseNextWork(): Promise<LeasedWork | null> {
-    const result=await this.rpc("x1_lease_next_work",{
+    const rpcName=this.config.agentLane ? "x1_lease_next_work_for_lane" : "x1_lease_next_work";
+    const body:Record<string,unknown>={
       p_tenant_id:this.config.tenantId,
       p_worker_id:this.config.workerId,
       p_environment:this.config.environment,
       p_ttl_seconds:this.config.leaseTtlSeconds ?? 300,
-    });
+    };
+    if(this.config.agentLane) body.p_agent_lane=this.config.agentLane;
+    const result=await this.rpc(rpcName,body);
     if(result===null) return null;
     return result as LeasedWork;
   }

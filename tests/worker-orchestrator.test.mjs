@@ -136,3 +136,37 @@ test("idle worker does nothing when queue is empty",async()=>{
   });
   assert.equal(result.status,"IDLE");
 });
+
+
+test("lane worker uses lane-aware RPC and sends exact agent lane",async()=>{
+  const calls=[];
+  const work=leasedWork();
+  const queue=new SupabaseWorkQueue({
+    url:"https://supabase.example",serviceRoleKey:"runtime-key",tenantId:work.tenant_id,
+    workerId:"super-agent-code-local",environment:"development",agentLane:"code_architect",
+    fetchImpl:async(url,init)=>{
+      calls.push({url,body:JSON.parse(init.body)});
+      return url.endsWith("/x1_lease_next_work_for_lane") ? response(JSON.stringify(work)) : response("");
+    },
+  });
+  assert.equal((await queue.leaseNextWork()).work_id,work.work_id);
+  assert.match(calls[0].url,/x1_lease_next_work_for_lane$/);
+  assert.equal(calls[0].body.p_agent_lane,"code_architect");
+  assert.equal(calls[0].body.p_worker_id,"super-agent-code-local");
+});
+
+test("generic worker remains on legacy lease RPC",async()=>{
+  const calls=[];
+  const work=leasedWork();
+  const queue=new SupabaseWorkQueue({
+    url:"https://supabase.example",serviceRoleKey:"runtime-key",tenantId:work.tenant_id,
+    workerId:"x1-swarm-preview-1",environment:"preview",
+    fetchImpl:async(url,init)=>{
+      calls.push({url,body:JSON.parse(init.body)});
+      return url.endsWith("/x1_lease_next_work") ? response(JSON.stringify(work)) : response("");
+    },
+  });
+  await queue.leaseNextWork();
+  assert.match(calls[0].url,/x1_lease_next_work$/);
+  assert.equal("p_agent_lane" in calls[0].body,false);
+});
