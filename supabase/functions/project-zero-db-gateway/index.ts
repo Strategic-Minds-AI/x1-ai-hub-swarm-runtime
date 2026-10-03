@@ -47,14 +47,34 @@ async function sha256Hex(value: string) {
   return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2,"0")).join("");
 }
 
+async function workerCredentialAuthorized(digest: string) {
+  const result = await admin("rpc/x1_match_worker_auth", {
+    method:"POST",
+    body:JSON.stringify({
+      p_service_name:serviceName,
+      p_token_sha256:digest,
+    }),
+  });
+  return result.ok && typeof result.body === "string" && result.body.length > 0;
+}
+
 async function authorized(req: Request) {
-  const token = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
+  const token = (req.headers.get("authorization") || "").replace(/^Bearer\\s+/i, "");
   if (!token) return false;
   const digest = await sha256Hex(token);
+
   const q = `x1_service_auth_hashes?select=token_sha256&service_name=eq.${encodeURIComponent(serviceName)}&active=eq.true&limit=1`;
-  const result = await admin(q, { method:"GET" });
-  if (!result.ok || !Array.isArray(result.body) || result.body.length !== 1) return false;
-  return String((result.body[0] as Record<string, unknown>).token_sha256 || "") === digest;
+  const legacy = await admin(q, { method:"GET" });
+  if (
+    legacy.ok &&
+    Array.isArray(legacy.body) &&
+    legacy.body.length === 1 &&
+    String((legacy.body[0] as Record<string, unknown>).token_sha256 || "") === digest
+  ) {
+    return true;
+  }
+
+  return workerCredentialAuthorized(digest);
 }
 
 async function rpc(name: string, body: unknown) {
