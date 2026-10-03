@@ -1,0 +1,85 @@
+name: strategic-minds-super-agents
+
+x-super-agent: &super-agent
+  build:
+    context: .
+    dockerfile: Dockerfile
+  restart: unless-stopped
+  env_file:
+    - .env.runtime
+  environment: &common-env
+    X1_RUNTIME_ENV: development
+    X1_WORKER_POLL_MS: "5000"
+
+services:
+  orchestrator:
+    <<: *super-agent
+    environment:
+      <<: *common-env
+      X1_AGENT_LANE: orchestrator
+      X1_WORKER_ID: super-agent-orchestrator-local
+      PORT: "3101"
+    ports: ["3101:3101"]
+
+  growth_operator:
+    <<: *super-agent
+    environment:
+      <<: *common-env
+      X1_AGENT_LANE: growth_operator
+      X1_WORKER_ID: super-agent-growth-local
+      PORT: "3102"
+    ports: ["3102:3102"]
+
+  code_architect:
+    <<: *super-agent
+    environment:
+      <<: *common-env
+      X1_AGENT_LANE: code_architect
+      X1_WORKER_ID: super-agent-code-local
+      PORT: "3103"
+    ports: ["3103:3103"]
+
+  social_strategist:
+    <<: *super-agent
+    environment:
+      <<: *common-env
+      X1_AGENT_LANE: social_strategist
+      X1_WORKER_ID: super-agent-social-local
+      PORT: "3104"
+    ports: ["3104:3104"]
+
+  sales_engine:
+    <<: *super-agent
+    environment:
+      <<: *common-env
+      X1_AGENT_LANE: sales_engine
+      X1_WORKER_ID: super-agent-sales-local
+      PORT: "3105"
+    ports: ["3105:3105"]
+
+  brand_guardian:
+    <<: *super-agent
+    environment:
+      <<: *common-env
+      X1_AGENT_LANE: brand_guardian
+      X1_WORKER_ID: super-agent-brand-local
+      PORT: "3106"
+    ports: ["3106:3106"]
+
+  replicator:
+    <<: *super-agent
+    environment:
+      <<: *common-env
+      X1_AGENT_LANE: replicator
+      X1_WORKER_ID: super-agent-replicator-local
+      PORT: "3107"
+    ports: ["3107:3107"]
+
+  swarm:
+    <<: *super-agent
+    environment:
+      <<: *common-env
+      X1_AGENT_LANE: swarm
+      X1_WORKER_ID: super-agent-swarm-local
+      PORT: "3108"
+    ports: ["3108:3108"]
