@@ -7,6 +7,9 @@
 --   4. rollback SQL is prepared and validated.
 --
 -- Source baseline: live X1 AI Hub Staging function definitions inspected 2026-10-03.
+-- Capability enforcement accepts both legacy string arrays and object-form {"id": "..."} requirements.
+-- Missing/malformed capability entries fail closed.
+-- Unregistered historical workers (including x1-preview-reconciler/local-ollama) fail closed until separately registered.
 
 create or replace function public.x1_lease_next_work(
   p_tenant_id uuid,
@@ -60,9 +63,16 @@ begin
     and q.action_class = any(v_worker.allowed_action_classes)
     and not exists (
       select 1
-      from jsonb_array_elements(q.required_capabilities) as capability
-      where coalesce(capability->>'id','') <> ''
-        and not (v_worker.allowed_capabilities ? (capability->>'id'))
+      from jsonb_array_elements(q.required_capabilities) as capability(value)
+      cross join lateral (
+        select case
+          when jsonb_typeof(capability.value)='string' then capability.value #>> '{}'
+          when jsonb_typeof(capability.value)='object' then capability.value->>'id'
+          else null
+        end as capability_id
+      ) resolved
+      where coalesce(btrim(resolved.capability_id),'') = ''
+         or not (v_worker.allowed_capabilities ? resolved.capability_id)
     )
     and (
       q.action_class='READ_ONLY'
