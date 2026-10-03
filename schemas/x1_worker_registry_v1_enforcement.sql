@@ -10,6 +10,8 @@
 -- Capability enforcement accepts both legacy string arrays and object-form {"id": "..."} requirements.
 -- Missing/malformed/empty capability requirements fail closed.
 -- Registry metadata lease_hold=true blocks lease + execution claim even if enabled is flipped by another controller.
+-- Independent private.x1_worker_control_guard must also explicitly allow the worker.
+-- The guard is runtime-write-inaccessible and protects against worker-registry-only controller drift.
 -- Unregistered historical workers (including x1-preview-reconciler/local-ollama) fail closed until separately registered.
 
 create or replace function public.x1_lease_next_work(
@@ -35,15 +37,26 @@ begin
     raise exception 'LEASE_TTL_INVALID';
   end if;
 
-  select *
+  select wr.*
   into v_worker
-  from private.x1_worker_registry
-  where worker_id=p_worker_id
-    and tenant_id=p_tenant_id
-    and environment=p_environment
-    and enabled=true
-    and credential_binding_state='BOUND'
-    and coalesce(metadata->>'lease_hold','false') <> 'true';
+  from private.x1_worker_registry wr
+  where wr.worker_id=p_worker_id
+    and wr.tenant_id=p_tenant_id
+    and wr.environment=p_environment
+    and wr.enabled=true
+    and wr.credential_binding_state='BOUND'
+    and coalesce(wr.metadata->>'lease_hold','false') <> 'true'
+    and exists (
+      select 1
+      from private.x1_worker_control_guard guard
+      where guard.worker_id=wr.worker_id
+        and guard.tenant_id=wr.tenant_id
+        and guard.environment=wr.environment
+        and guard.execution_plane=wr.execution_plane
+        and guard.controller_id='worker-fabric-controller-v1'
+        and guard.control_epoch='controller-convergence-20261003-v1'
+        and guard.lease_allowed=true
+    );
 
   if not found then
     raise exception 'WORKER_NOT_REGISTERED_OR_DISABLED';
@@ -162,6 +175,17 @@ begin
       and wr.enabled=true
       and wr.credential_binding_state='BOUND'
       and coalesce(wr.metadata->>'lease_hold','false') <> 'true'
+      and exists (
+        select 1
+        from private.x1_worker_control_guard guard
+        where guard.worker_id=wr.worker_id
+          and guard.tenant_id=wr.tenant_id
+          and guard.environment=wr.environment
+          and guard.execution_plane=wr.execution_plane
+          and guard.controller_id='worker-fabric-controller-v1'
+          and guard.control_epoch='controller-convergence-20261003-v1'
+          and guard.lease_allowed=true
+      )
   ) then
     raise exception 'WORKER_NOT_REGISTERED_OR_DISABLED';
   end if;
