@@ -8,7 +8,8 @@
 --
 -- Source baseline: live X1 AI Hub Staging function definitions inspected 2026-10-03.
 -- Capability enforcement accepts both legacy string arrays and object-form {"id": "..."} requirements.
--- Missing/malformed capability entries fail closed.
+-- Missing/malformed/empty capability requirements fail closed.
+-- Registry metadata lease_hold=true blocks lease + execution claim even if enabled is flipped by another controller.
 -- Unregistered historical workers (including x1-preview-reconciler/local-ollama) fail closed until separately registered.
 
 create or replace function public.x1_lease_next_work(
@@ -41,7 +42,8 @@ begin
     and tenant_id=p_tenant_id
     and environment=p_environment
     and enabled=true
-    and credential_binding_state='BOUND';
+    and credential_binding_state='BOUND'
+    and coalesce(metadata->>'lease_hold','false') <> 'true';
 
   if not found then
     raise exception 'WORKER_NOT_REGISTERED_OR_DISABLED';
@@ -54,6 +56,7 @@ begin
     and q.status='PENDING'
     and q.available_at <= now()
     and q.attempts < q.max_attempts
+    and jsonb_array_length(q.required_capabilities) > 0
     and coalesce(q.payload->>'agent_lane','') = ''
     and (q.task_id !~ '^artifact[.]finalized:[0-9a-f]{24}$' or p_worker_id='x1-preview-reconciler')
     and (
@@ -158,6 +161,7 @@ begin
       and wr.tenant_id=p_tenant_id
       and wr.enabled=true
       and wr.credential_binding_state='BOUND'
+      and coalesce(wr.metadata->>'lease_hold','false') <> 'true'
   ) then
     raise exception 'WORKER_NOT_REGISTERED_OR_DISABLED';
   end if;
