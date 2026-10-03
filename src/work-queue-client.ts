@@ -17,6 +17,23 @@ export interface SupabaseWorkQueueConfig {
   workerIdentity?: RegisteredWorkerIdentity;
 }
 
+export interface X1IncidentRecord {
+  incident_key: string;
+  tenant_id: string;
+  severity: "P0"|"P1"|"P2"|"P3"|"P4"|"P5"|"P6"|"P7";
+  category: string;
+  status: "OPEN"|"MITIGATED"|"RESOLVED"|"BLOCKED";
+  source_system?: string;
+  related_work_id?: string | null;
+  failure_fingerprint?: string | null;
+  summary: string;
+  evidence?: unknown[];
+  workaround?: Record<string,unknown>;
+  next_action?: string | null;
+  attempts?: number;
+  resolved_at?: string | null;
+}
+
 function resolveFetch(config: SupabaseWorkQueueConfig): HttpFetchLike {
   const runtimeFetch=(globalThis as unknown as {fetch?:HttpFetchLike}).fetch;
   const fetchImpl=config.fetchImpl ?? runtimeFetch;
@@ -46,25 +63,33 @@ export class SupabaseWorkQueue {
     validateConfig(config);
   }
 
+  private async gatewayOperation(op:string,body:Record<string,unknown>):Promise<unknown> {
+    if(!this.config.gatewayUrl || !this.config.internalServiceToken) {
+      throw new Error("WORK_QUEUE_GATEWAY_REQUIRED");
+    }
+    const fetchImpl=resolveFetch(this.config);
+    const response=await fetchImpl(this.config.gatewayUrl,{
+      method:"POST",
+      headers:{
+        Authorization:`Bearer ${this.config.internalServiceToken}`,
+        "Content-Type":"application/json",
+        Accept:"application/json",
+      },
+      body:JSON.stringify({op,...body}),
+    });
+    const text=await response.text();
+    let parsed:any={};
+    try { parsed=text ? JSON.parse(text) : {}; } catch {}
+    if(!response.ok || parsed?.ok!==true) {
+      throw new Error(`WORK_QUEUE_GATEWAY_FAILED:${response.status}:${parsed?.code ?? "UNKNOWN"}`);
+    }
+    return parsed.data ?? null;
+  }
+
   private async rpc(name:string,body:Record<string,unknown>): Promise<unknown> {
     const fetchImpl=resolveFetch(this.config);
     if(this.config.gatewayUrl && this.config.internalServiceToken) {
-      const response=await fetchImpl(this.config.gatewayUrl,{
-        method:"POST",
-        headers:{
-          Authorization:`Bearer ${this.config.internalServiceToken}`,
-          "Content-Type":"application/json",
-          Accept:"application/json",
-        },
-        body:JSON.stringify({op:"rpc",name,body}),
-      });
-      const text=await response.text();
-      let parsed:any={};
-      try { parsed=text ? JSON.parse(text) : {}; } catch {}
-      if(!response.ok || parsed?.ok!==true) {
-        throw new Error(`WORK_QUEUE_GATEWAY_FAILED:${response.status}:${parsed?.code ?? "UNKNOWN"}`);
-      }
-      return parsed.data ?? null;
+      return this.gatewayOperation("rpc",{name,body});
     }
 
     const response=await fetchImpl(
@@ -97,6 +122,35 @@ export class SupabaseWorkQueue {
     if(!result || typeof result!=="object" || (result as {ok?:boolean}).ok!==true) {
       throw new Error("WORKER_IDENTITY_ASSERTION_REJECTED");
     }
+  }
+
+  async recordHeartbeat(
+    runtimeState:"ONLINE"|"DEGRADED"|"STALE"|"OFFLINE"|"BOOTING",
+    health:Record<string,unknown>={},
+  ):Promise<unknown> {
+    const identity=this.config.workerIdentity;
+    if(!identity) throw new Error("WORKER_IDENTITY_REQUIRED");
+    return this.rpc("x1_record_worker_heartbeat",{
+      p_worker_id:identity.workerId,
+      p_tenant_id:identity.tenantId,
+      p_environment:identity.environment,
+      p_execution_plane:identity.executionPlane,
+      p_identity_fingerprint:identity.identityFingerprint,
+      p_artifact_digest:identity.artifactDigest,
+      p_runtime_state:runtimeState,
+      p_health:health,
+    });
+  }
+
+  async persistIncident(record:X1IncidentRecord):Promise<unknown> {
+    const row={
+      ...record,
+      source_system:record.source_system ?? this.config.workerId,
+      attempts:record.attempts ?? 0,
+      evidence:record.evidence ?? [],
+      workaround:record.workaround ?? {},
+    };
+    return this.gatewayOperation("persist_incident",{row});
   }
 
   async leaseNextWork(): Promise<LeasedWork | null> {
