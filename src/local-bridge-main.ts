@@ -11,6 +11,7 @@ import { ControlPlaneClient } from "./control-plane-client.js";
 import { SupabaseWorkQueue } from "./work-queue-client.js";
 import { processNextWork } from "./worker-orchestrator.js";
 import { LocalControlPlaneDispatcher } from "./local-control-plane-dispatcher.js";
+import { buildWorkerIdentity } from "./worker-identity.js";
 
 function required(name:string):string {
   const value=process.env[name];
@@ -33,6 +34,18 @@ const dbGatewayUrl=required("X1_DB_GATEWAY_URL");
 const internalToken=required("X1_INTERNAL_SERVICE_TOKEN");
 const localControlPlaneUrl=process.env.LOCAL_CONTROL_PLANE_URL ?? "http://host.docker.internal:4311";
 
+const workerIdentity=buildWorkerIdentity({
+  workerId,
+  tenantId,
+  executionPlane:"jarvis-local",
+  environment,
+  identityVersion:required("X1_WORKER_IDENTITY_VERSION"),
+  artifactDigest:required("X1_WORKER_ARTIFACT_DIGEST"),
+  credentialId:required("X1_WORKER_CREDENTIAL_ID"),
+  allowedActionClasses:["READ_ONLY"],
+  allowedCapabilities:["local-agent-request","local-control-plane-dispatch"],
+});
+
 const signingKey=createHash("sha256")
   .update(`project-zero-bootstrap-signing-v1:${internalToken}`)
   .digest("hex");
@@ -43,6 +56,8 @@ const queue=new SupabaseWorkQueue({
   tenantId,
   workerId,
   environment,
+  requireRegisteredIdentity:true,
+  workerIdentity,
 });
 
 const controlPlane=new ControlPlaneClient({
@@ -109,6 +124,8 @@ const server=createServer((req,res)=>{
       workerId,
       runtime:environment,
       executionPlane:"jarvis-local",
+      identityVersion:workerIdentity.identityVersion,
+      registeredIdentityRequired:true,
       lastTick,
     }));
     return;
