@@ -124,11 +124,16 @@ Deno.serve(async (req: Request) => {
       "x1_fail_execution",
       "x1_assert_worker_identity",
       "x1_record_worker_heartbeat",
+      "x1_reconcile_tick",
     ]);
     if (!allowed.has(name)) return json(403, { ok:false, code:"RPC_NOT_ALLOWED" });
     const body=(input.body && typeof input.body==="object" && !Array.isArray(input.body))
       ? input.body as Record<string,unknown>
       : {};
+
+    if (name==="x1_reconcile_tick" && auth.kind!=="service") {
+      return json(403,{ok:false,code:"SERVICE_AUTH_REQUIRED"});
+    }
 
     if (auth.kind==="worker") {
       const claimed=String(body.p_worker_id ?? body.p_agent_id ?? "");
