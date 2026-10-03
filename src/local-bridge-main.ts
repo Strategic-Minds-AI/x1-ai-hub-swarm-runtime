@@ -25,8 +25,7 @@ const workerId=process.env.X1_WORKER_ID ?? "jarvis-local-power-grid-1";
 if(!workerId.startsWith("jarvis-local-")) throw new Error("X1_WORKER_ID_MUST_BE_JARVIS_LOCAL");
 
 const environment=(process.env.X1_RUNTIME_ENV ?? "preview") as "development"|"preview"|"production";
-if(environment==="production") throw new Error("LOCAL_POWER_GRID_PRODUCTION_DISABLED");
-if(!["development","preview"].includes(environment)) throw new Error("X1_RUNTIME_ENV_INVALID");
+if(environment!=="preview") throw new Error("LOCAL_POWER_GRID_PREVIEW_ONLY");
 
 const tenantId=required("X1_SYSTEM_TENANT_ID");
 const controlPlaneUrl=required("X1_CONTROL_PLANE_URL");
@@ -110,7 +109,6 @@ const server=createServer((req,res)=>{
       workerId,
       runtime:environment,
       executionPlane:"jarvis-local",
-      localControlPlaneUrl,
       lastTick,
     }));
     return;
