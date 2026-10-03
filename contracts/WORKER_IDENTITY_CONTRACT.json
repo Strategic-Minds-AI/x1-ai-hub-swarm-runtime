@@ -1,0 +1,61 @@
+{
+  "contract_id": "UNIVERSAL_WORKER_IDENTITY_V1",
+  "version": "1.0.0",
+  "status": "STAGING_DRAFT",
+  "authority": "Strategic Minds Universal Worker Fabric",
+  "identity_fields": [
+    "worker_id",
+    "tenant_id",
+    "execution_plane",
+    "environment",
+    "identity_version",
+    "artifact_digest",
+    "credential_id",
+    "identity_fingerprint"
+  ],
+  "execution_planes": [
+    "jarvis-local",
+    "local-ollama",
+    "railway",
+    "validator",
+    "cloud"
+  ],
+  "credential_binding_states": [
+    "UNBOUND",
+    "BOUND",
+    "REVOKED"
+  ],
+  "requirements": {
+    "registered": true,
+    "enabled": true,
+    "credential_binding_state": "BOUND",
+    "tenant_match": true,
+    "environment_match": true,
+    "execution_plane_match": true,
+    "identity_version_match": true,
+    "artifact_digest_match": true,
+    "credential_id_match": true,
+    "identity_fingerprint_match": true,
+    "action_class_allowlist": true,
+    "capability_allowlist": true
+  },
+  "governance": {
+    "plaintext_credentials_in_registry": false,
+    "self_registration_rpc": false,
+    "production_authority": false,
+    "operator_approval_required_for_credential_binding": true,
+    "operator_approval_required_for_schema_application": true
+  },
+  "rollout": [
+    "create_registry_and_assertion_rpc",
+    "register_railway_preview_worker",
+    "validate_railway_against_registry",
+    "register_jarvis_disabled_unbound",
+    "bind_approved_jarvis_staging_credential",
+    "enable_jarvis",
+    "apply_lease_enforcement",
+    "run_signed_jarvis_canary",
+    "run_failover_and_recovery_tests",
+    "independent_guardian_validation"
+  ]
+}
