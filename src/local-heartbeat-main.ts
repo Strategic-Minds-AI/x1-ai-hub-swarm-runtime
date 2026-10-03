@@ -29,7 +29,7 @@ const identity=buildWorkerIdentity({
   artifactDigest:required("X1_WORKER_ARTIFACT_DIGEST"),
   credentialId:required("X1_WORKER_CREDENTIAL_ID"),
   allowedActionClasses:["READ_ONLY"],
-  allowedCapabilities:["local-heartbeat"],
+  allowedCapabilities:["local-agent-request","local-control-plane-dispatch"],
 });
 
 const queue=new SupabaseWorkQueue({
