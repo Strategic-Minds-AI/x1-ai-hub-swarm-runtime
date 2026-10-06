@@ -49,6 +49,7 @@ export interface TaskLease {
 
 export interface LeasedWork {
   work_id: string;
+  mission_id?: string | null;
   work_packet_id: string;
   task_id: string;
   tenant_id: string;

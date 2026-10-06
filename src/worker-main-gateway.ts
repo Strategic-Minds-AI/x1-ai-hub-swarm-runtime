@@ -23,6 +23,7 @@ if(!Number.isInteger(port) || port<=0 || port>65535) throw new Error("PORT_INVAL
 const workerId=process.env.X1_WORKER_ID ?? "x1-swarm-preview-1";
 const environment=(process.env.X1_RUNTIME_ENV ?? "preview") as "development"|"preview"|"production";
 if(!["development","preview","production"].includes(environment)) throw new Error("X1_RUNTIME_ENV_INVALID");
+const sourceSha=process.env.RAILWAY_GIT_COMMIT_SHA ?? process.env.X1_SOURCE_SHA ?? null;
 
 const tenantId=required("X1_SYSTEM_TENANT_ID");
 const controlPlaneUrl=required("X1_CONTROL_PLANE_URL");
@@ -62,7 +63,13 @@ async function tick():Promise<void> {
       workerId,
       handler:async(work)=>{
         if(work.action_class!=="READ_ONLY") throw new Error("NO_PREVIEW_HANDLER_FOR_MUTATION");
-        return {acknowledged:true,workPacketId:work.work_packet_id,taskId:work.task_id};
+        return {
+          acknowledged:true,
+          missionId:work.mission_id ?? null,
+          workPacketId:work.work_packet_id,
+          taskId:work.task_id,
+          sourceSha,
+        };
       },
     });
     lastTick={at:new Date().toISOString(),status:result.status,code:result.code};
@@ -88,7 +95,7 @@ const server=createServer((req,res)=>{
     const healthy=lastTick.status!=="FAILED";
     res.statusCode=healthy?200:503;
     res.setHeader("content-type","application/json");
-    res.end(JSON.stringify({ok:healthy,workerId,runtime:environment,lastTick}));
+    res.end(JSON.stringify({ok:healthy,workerId,runtime:environment,sourceSha,lastTick}));
     return;
   }
   res.statusCode=404;
