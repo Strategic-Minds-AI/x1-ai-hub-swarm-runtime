@@ -41,6 +41,10 @@ function nonRetryableAuthorizationError(code:string): boolean {
     "AUTHORIZATION_SIGNATURE_INVALID",
     "AUTHORIZATION_SIGNATURE_ALGORITHM_INVALID",
     "AUTHORIZATION_RECEIPT_REQUIRED",
+    "CONTROL_PLANE_AUTHORIZATION_FAILED",
+    "CONTROL_PLANE_INTERNAL_TOKEN_REQUIRED",
+    "CONTROL_PLANE_URL_REQUIRED",
+    "CONTROL_PLANE_FETCH_UNAVAILABLE",
   ].includes(code);
 }
 
@@ -62,8 +66,10 @@ export async function processNextWork<T=unknown>(
     });
   } catch(error) {
     const code=codeFor(error);
-    await config.queue.finishWork(work,"FAILED",code);
-    return {status:"FAILED",workId:work.work_id,code};
+    // Credential/auth failures are not transient worker failures. Never auto-retry them.
+    const status=nonRetryableAuthorizationError(code) ? "BLOCKED" : "FAILED";
+    await config.queue.finishWork(work,status,code);
+    return {status,workId:work.work_id,code};
   }
 
   if(!authorization.allowed) {
