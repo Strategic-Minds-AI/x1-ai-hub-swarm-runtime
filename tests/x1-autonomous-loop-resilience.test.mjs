@@ -22,7 +22,7 @@ function authorization() {
     authorization_id:"auth-synthetic",task_id:"task-1",agent_id:"worker-1",tenant_id:tenant,
     requested_action:"READ_ONLY",capabilities_required:[],capabilities_resolved:[],
     capability_sources:{},policy_version:"test",registry_version:"test",
-    issued_at:"2026-10-11T00:00:00.000Z",expires_at:"2099-10-11T00:00:00.000Z",
+    issued_at:new Date(Date.now()-60_000).toISOString(),expires_at:new Date(Date.now()+240_000).toISOString(),
     allowed:true,blockers:[],receipt_id:"receipt-synthetic",
   };
   return {...a,signature:{algorithm:"HMAC-SHA256",
@@ -35,7 +35,7 @@ function work(overrides={}) {
     action_class:"READ_ONLY",required_capabilities:[],payload:{},
     idempotency_key:"a".repeat(64),attempt:1,source_sha:null,
     lease:{leaseId:"lease-1",taskId:"task-1",holderAgentId:"worker-1",
-      acquiredAt:"2026-10-11T00:00:00.000Z",expiresAt:"2099-10-11T00:00:00.000Z"},
+      acquiredAt:new Date(Date.now()-60_000).toISOString(),expiresAt:new Date(Date.now()+240_000).toISOString()},
     ...overrides,
   };
 }
@@ -109,7 +109,7 @@ test("duplicate claim never executes handler and is frozen BLOCKED",async()=>{
   assert.deepEqual(finishes,[{status:"BLOCKED",code:"DUPLICATE_EXECUTION"}]);
 });
 test("direct authorized execution still succeeds with durable ledger",async()=>{
-  const ctx={taskId:"task-1",agentId:"worker-1",tenantId:tenant};
+  const ctx={taskId:"task-1",agentId:"worker-1",tenantId:tenant,requestedAction:"READ_ONLY"};
   let completed=0;
   const output=await executeAuthorizedTask({
     authorization:authorization(),context:ctx,lease:work().lease,signingKey:key,
