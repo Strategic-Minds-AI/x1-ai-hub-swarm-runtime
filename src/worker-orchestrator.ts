@@ -4,7 +4,7 @@ import { SupabaseExecutionLedger, type SupabaseExecutionLedgerConfig } from "./s
 import { ControlPlaneClient } from "./control-plane-client.js";
 import { SupabaseWorkQueue } from "./work-queue-client.js";
 import type { ExecutionLedger } from "./execution-ledger.js";
-import type { LeasedWork } from "./types.js";
+import type { BootstrapAuthorization, LeasedWork } from "./types.js";
 
 export function executionAttemptKey(baseKey:string,attempt:number):string {
   if(!/^[0-9a-f]{64}$/.test(baseKey) || !Number.isInteger(attempt) ||
@@ -31,6 +31,7 @@ export interface WorkerOrchestratorConfig {
   internalServiceToken?: string;
   workerId: string;
   handler: (work: LeasedWork) => Promise<unknown> | unknown;
+  authorizationGuard?: (work: LeasedWork, authorization: BootstrapAuthorization) => void;
   ledgerFactory?: (work: LeasedWork) => ExecutionLedger;
 }
 
@@ -84,6 +85,18 @@ export async function processNextWork<T=unknown>(
   if(!authorization.allowed) {
     await config.queue.finishWork(work,"BLOCKED","CAPABILITY_BOOTSTRAP_BLOCKED");
     return {status:"BLOCKED",workId:work.work_id,code:"CAPABILITY_BOOTSTRAP_BLOCKED"};
+  }
+
+  // Optional, fail-closed capability-scope guard for specific authorized
+  // handlers. Verify BEFORE the ledger claim and any side effect.
+  if(config.authorizationGuard) {
+    try {
+      config.authorizationGuard(work,authorization);
+    } catch(error) {
+      const code=codeFor(error);
+      await config.queue.finishWork(work,"BLOCKED",code);
+      return {status:"BLOCKED",workId:work.work_id,code};
+    }
   }
 
   const ledger=config.ledgerFactory?.(work) ?? new SupabaseExecutionLedger({

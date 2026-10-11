@@ -11,7 +11,7 @@ import { ControlPlaneClient } from "./control-plane-client.js";
 import { SupabaseWorkQueue } from "./work-queue-client.js";
 import { processNextWork } from "./worker-orchestrator.js";
 import { SingleFlightGate } from "./single-flight.js";
-import { handleWleSyntheticPreview, WLE_PREVIEW_KIND } from "./wle-preview-adapter.js";
+import { assertWleSignedAuthorizationScope, handleWleSyntheticPreview, WLE_PREVIEW_KIND } from "./wle-preview-adapter.js";
 import type { WlePrivatePreviewReceipt } from "./wle-preview-adapter.js";
 
 function required(name:string):string {
@@ -66,6 +66,7 @@ async function tick():Promise<void> {
       gatewayUrl:dbGatewayUrl,
       internalServiceToken:internalToken,
       workerId,
+      authorizationGuard:assertWleSignedAuthorizationScope,
       handler:async(work)=>{
         // Preview-only WLE branch path; off unless explicitly enabled in
         // the existing X1 preview worker. Signed X1 authorization and lease

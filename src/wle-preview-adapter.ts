@@ -1,7 +1,7 @@
 /// <reference lib="dom" />
 import { createHash } from "node:crypto";
 import { APPROVED_ROOFING_TEMPLATE_HTML, APPROVED_ROOFING_TEMPLATE_SHA256 } from "./wle-approved-roofing-template.js";
-import type { LeasedWork } from "./types.js";
+import type { BootstrapAuthorization, LeasedWork } from "./types.js";
 
 /**
  * WLE staging-only preview adapter. It reuses X1's signed authorization,
@@ -85,6 +85,36 @@ function payloadValid(work: LeasedWork): void {
   failUnless(input.customer_outbound === false && input.requires_domain_purchase === false, "WLE_PROTECTED_ACTION_DENIED");
   failUnless(input.external_mutation === true, "WLE_MUTATION_MISCLASSIFIED");
   failUnless(input.expected_vercel_project_id === WLE_CANONICAL_VERCEL_PROJECT, "WLE_VERCEL_PROJECT_MISMATCH");
+}
+
+/**
+ * Defense-in-depth against an allowed but wrongly scoped signed authorization.
+ * X1 verifies the signature separately. This guard binds the *exact* WLE
+ * capability to the queued work BEFORE claiming the execution ledger or
+ * invoking the handler, and never affects unrelated X1 jobs.
+ */
+export function assertWleSignedAuthorizationScope(
+  work: LeasedWork, authorization: BootstrapAuthorization,
+): void {
+  if (work.payload?.kind !== WLE_PREVIEW_KIND) return;
+  const capability = "wle-synthetic-preview-only";
+  failUnless(work.action_class === "NON_PRODUCTION_MUTATION", "WLE_ACTION_CLASS_DENIED");
+  failUnless(
+    work.required_capabilities.length === 1 &&
+    work.required_capabilities[0]?.id === capability &&
+    work.required_capabilities[0]?.mechanism === "policy",
+    "WLE_QUEUED_CAPABILITY_SCOPE_MISMATCH",
+  );
+  failUnless(
+    Array.isArray(authorization.capabilities_required) &&
+    authorization.capabilities_required.length === 1 &&
+    authorization.capabilities_required[0] === capability &&
+    Array.isArray(authorization.capabilities_resolved) &&
+    authorization.capabilities_resolved.includes(capability) &&
+    Array.isArray(authorization.blockers) &&
+    authorization.blockers.length === 0,
+    "WLE_SIGNED_CAPABILITY_SCOPE_MISMATCH",
+  );
 }
 
 export function renderWleSyntheticPreview(work: LeasedWork): { html: string; sha256: string; byteSize: number } {
