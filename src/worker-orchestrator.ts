@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { executeAuthorizedTask } from "./execute-authorized-task.js";
 import { SupabaseExecutionLedger, type SupabaseExecutionLedgerConfig } from "./supabase-execution-ledger.js";
 import { ControlPlaneClient } from "./control-plane-client.js";
@@ -86,7 +87,11 @@ export async function processNextWork<T=unknown>(
     internalServiceToken:config.internalServiceToken,
     tenantId:work.tenant_id,
     agentId:config.workerId,
-    idempotencyKey:work.idempotency_key,
+    // One stable key per task attempt. A failed attempt must not poison the
+    // next lease via x1_execution_ledger_idempotency_key_key.
+    idempotencyKey:createHash("sha256").update(
+      work.idempotency_key+":"+String(work.attempt)
+    ).digest("hex"),
     attempt:work.attempt,
     completionReceiptId:`worker:${work.work_id}:${work.attempt}`,
   } satisfies SupabaseExecutionLedgerConfig);
