@@ -37,6 +37,7 @@ export interface ExecutionContext {
   taskId: string;
   agentId: string;
   tenantId: string;
+  requestedAction: string;
 }
 
 export interface TaskLease {

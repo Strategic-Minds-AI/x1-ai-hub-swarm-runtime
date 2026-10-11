@@ -5,7 +5,7 @@ import { executeAuthorizedTask, InMemoryExecutionLedger } from "../dist/index.js
 
 const KEY = "test-only-signing-key";
 const NOW = new Date("2026-09-24T09:00:00.000Z");
-const context = { taskId: "task-1", agentId: "agent-1", tenantId: "tenant-1" };
+const context = { taskId: "task-1", agentId: "agent-1", tenantId: "tenant-1", requestedAction:"build" };
 const lease = {
   leaseId: "lease-1",
   taskId: "task-1",
