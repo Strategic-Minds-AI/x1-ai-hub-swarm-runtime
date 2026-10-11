@@ -89,8 +89,9 @@ export async function processNextWork<T=unknown>(
     completionReceiptId:`worker:${work.work_id}:${work.attempt}`,
   } satisfies SupabaseExecutionLedgerConfig);
 
+  let output:T;
   try {
-    const output=await executeAuthorizedTask<T>({
+    output=await executeAuthorizedTask<T>({
       authorization,
       context:{taskId:work.task_id,agentId:config.workerId,tenantId:work.tenant_id},
       lease:work.lease,
@@ -98,12 +99,26 @@ export async function processNextWork<T=unknown>(
       ledger,
       handler:()=>config.handler(work) as Promise<T> | T,
     });
-    await config.queue.finishWork(work,"COMPLETED");
-    return {status:"COMPLETED",workId:work.work_id,output};
   } catch(error) {
     const code=codeFor(error);
-    const status=nonRetryableAuthorizationError(code) ? "BLOCKED" : "FAILED";
+    // Unconfirmed durable receipts must be reconciled against the ledger and
+    // original lease. Marking these FAILED could trigger duplicate side effects.
+    if(code==="EXECUTION_COMPLETION_UNCONFIRMED" ||
+       code==="EXECUTION_FAILURE_RECEIPT_UNCONFIRMED") {
+      return {status:"FAILED",workId:work.work_id,code};
+    }
+    const status=code==="DUPLICATE_EXECUTION" ||
+      nonRetryableAuthorizationError(code) ? "BLOCKED" : "FAILED";
     await config.queue.finishWork(work,status,code);
     return {status,workId:work.work_id,code};
   }
+
+  // Ledger completion succeeded. A queue acknowledgement failure is NOT an
+  // execution failure. Do not send a second, contradictory FAILED transition.
+  try {
+    await config.queue.finishWork(work,"COMPLETED");
+  } catch {
+    return {status:"FAILED",workId:work.work_id,code:"QUEUE_COMPLETION_UNCONFIRMED"};
+  }
+  return {status:"COMPLETED",workId:work.work_id,output};
 }
