@@ -25,7 +25,7 @@ function authorization({allowed=true,tenant="00000000-0000-0000-0000-00000000000
     authorization_id:"auth-1",task_id:task,agent_id:agent,tenant_id:tenant,requested_action:"READ_ONLY",
     capabilities_required:["skill-creator"],capabilities_resolved:allowed?["skill-creator"]:[],
     capability_sources:allowed?{"skill-creator":"catalog"}:{},policy_version:"p1",registry_version:"r1",
-    issued_at:"2026-09-24T10:00:00.000Z",expires_at:"2099-09-24T10:05:00.000Z",
+    issued_at:new Date(Date.now()-60_000).toISOString(),expires_at:new Date(Date.now()+240_000).toISOString(),
     allowed,blockers:allowed?[]:[{capabilityId:"skill-creator",state:"MISSING_SKILL",closure:"CREATE_SKILL",detail:"missing"}],
     receipt_id:"receipt-1",
   };
@@ -50,7 +50,7 @@ function leasedWork(){
     attempt:1,
     lease:{
       leaseId:"lease-1",taskId:"task-1",holderAgentId:"worker-1",
-      acquiredAt:"2026-09-24T10:00:00.000Z",expiresAt:"2099-09-24T10:05:00.000Z",
+      acquiredAt:new Date(Date.now()-60_000).toISOString(),expiresAt:new Date(Date.now()+240_000).toISOString(),
     },
   };
 }
