@@ -1,9 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createHmac } from "node:crypto";
+import { createHmac, createHash } from "node:crypto";
 import {
   executeAuthorizedTask, processNextWork, ControlPlaneClient, SupabaseWorkQueue,
-  SupabaseExecutionLedger,
+  SupabaseExecutionLedger, executionAttemptKey,
 } from "../dist/index.js";
 import { SingleFlightGate } from "../dist/single-flight.js";
 
@@ -263,4 +263,22 @@ test("uncertain ledger claim leaves queue leased, with no execution or second fi
   assert.equal(result.code,"EXECUTION_CLAIM_UNCONFIRMED");
   assert.deepEqual(finishes,[]);
   assert.equal(executed,0);
+});
+
+test("ledger execution keys are stable per attempt and distinct for safe retries",()=>{
+  const base="a".repeat(64);
+  const k1=executionAttemptKey(base,1);
+  const k2=executionAttemptKey(base,2);
+  assert.equal(k1,createHash("sha256").update(base+":1").digest("hex"));
+  assert.equal(k2,createHash("sha256").update(base+":2").digest("hex"));
+  assert.notEqual(k1,k2);
+  assert.equal(executionAttemptKey(base,1),k1);
+  assert.match(k1,/^[0-9a-f]{64}$/);
+});
+test("invalid execution attempt keys are rejected before RPC",()=>{
+  const base="a".repeat(64);
+  for(const attempt of [0,-1,1.5,11,NaN]) {
+    assert.throws(()=>executionAttemptKey(base,attempt),/EXECUTION_ATTEMPT_KEY_INVALID/);
+  }
+  assert.throws(()=>executionAttemptKey("unsafe-short-key",1),/EXECUTION_ATTEMPT_KEY_INVALID/);
 });
