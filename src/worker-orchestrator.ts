@@ -37,6 +37,8 @@ function nonRetryableAuthorizationError(code:string): boolean {
     "CAPABILITY_BOOTSTRAP_BLOCKED",
     "AUTHORIZATION_REQUIRED",
     "AUTHORIZATION_CONTEXT_MISMATCH",
+    "AUTHORIZATION_ACTION_MISMATCH",
+    "AUTHORIZATION_TIME_WINDOW_INVALID",
     "AUTHORIZATION_EXPIRED",
     "AUTHORIZATION_SIGNATURE_INVALID",
     "AUTHORIZATION_SIGNATURE_ALGORITHM_INVALID",
@@ -93,7 +95,8 @@ export async function processNextWork<T=unknown>(
   try {
     output=await executeAuthorizedTask<T>({
       authorization,
-      context:{taskId:work.task_id,agentId:config.workerId,tenantId:work.tenant_id},
+      context:{taskId:work.task_id,agentId:config.workerId,tenantId:work.tenant_id,
+        requestedAction:work.action_class},
       lease:work.lease,
       signingKey:config.bootstrapSigningKey,
       ledger,
