@@ -27,12 +27,26 @@ export async function executeAuthorizedTask<T>(input: AuthorizedTaskInput<T>): P
     throw new Error("DUPLICATE_EXECUTION");
   }
 
+  // Handler failure and durable receipt failure are distinct. After a handler
+  // has returned, NEVER mark the execution failed just because the provider
+  // did not acknowledge the completion receipt. The lease remains available
+  // for an independent reconciliation rather than risking a second execution.
+  let output: T;
   try {
-    const output = await input.handler();
-    await input.ledger.complete(input.context.taskId, input.lease.leaseId);
-    return output;
+    output = await input.handler();
   } catch (error) {
-    await input.ledger.fail(input.context.taskId, input.lease.leaseId, error);
+    try {
+      await input.ledger.fail(input.context.taskId, input.lease.leaseId, error);
+    } catch {
+      throw new Error("EXECUTION_FAILURE_RECEIPT_UNCONFIRMED");
+    }
     throw error;
   }
+
+  try {
+    await input.ledger.complete(input.context.taskId, input.lease.leaseId);
+  } catch {
+    throw new Error("EXECUTION_COMPLETION_UNCONFIRMED");
+  }
+  return output;
 }
