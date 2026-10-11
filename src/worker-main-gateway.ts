@@ -11,6 +11,7 @@ import { ControlPlaneClient } from "./control-plane-client.js";
 import { SupabaseWorkQueue } from "./work-queue-client.js";
 import { processNextWork } from "./worker-orchestrator.js";
 import { SingleFlightGate } from "./single-flight.js";
+import {X1_PROMPT_PREVIEW_KIND,createX1PreviewHttpProvider,executeX1PromptPreview} from "./x1-prompt-preview.js";
 
 function required(name:string):string {
   const value=process.env[name];
@@ -65,14 +66,28 @@ async function tick():Promise<void> {
       internalServiceToken:internalToken,
       workerId,
       handler:async(work)=>{
-        if(work.action_class!=="READ_ONLY") throw new Error("NO_PREVIEW_HANDLER_FOR_MUTATION");
-        return {
+        if(work.action_class==="READ_ONLY")return {
           acknowledged:true,
           missionId:work.mission_id ?? null,
           workPacketId:work.work_packet_id,
           taskId:work.task_id,
           sourceSha,
         };
+        // Nonproduction mutation remains OFF until the independently reviewed
+        // database completion lease/receipt fences and scoped provider bindings
+        // have been verified. Do not replace or create another worker.
+        if(work.action_class==="NON_PRODUCTION_MUTATION" &&
+           work.payload?.kind===X1_PROMPT_PREVIEW_KIND){
+          if(environment!=="preview" ||
+             process.env.X1_PROMPT_PREVIEW_ENABLED!=="true" ||
+             process.env.X1_DB_COMPLETION_FENCING_PASS!=="true"){
+            throw new Error("X1_PREVIEW_EXECUTION_NOT_ACTIVATED");
+          }
+          const githubToken=required("X1_GITHUB_PREVIEW_TOKEN");
+          const vercelToken=required("X1_VERCEL_PREVIEW_TOKEN");
+          return executeX1PromptPreview(work,createX1PreviewHttpProvider({githubToken,vercelToken}));
+        }
+        throw new Error("NO_PREVIEW_HANDLER_FOR_MUTATION");
       },
     });
     lastTick={at:new Date().toISOString(),status:result.status,code:result.code};
