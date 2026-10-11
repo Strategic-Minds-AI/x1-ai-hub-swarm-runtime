@@ -101,8 +101,11 @@ const server=createServer((req,res)=>{
     return;
   }
   if(req.url==="/healthz") {
-    const healthy=lastTick.status!=="FAILED";
-    res.statusCode=healthy?200:503;
+    // This endpoint is process liveness, not dependency readiness. Transient
+    // queue/authorization outages must not trigger cascading Railway restarts.
+    // /readyz separately reports dependency failures and shutdown drain state.
+    const healthy=true;
+    res.statusCode=200;
     res.setHeader("content-type","application/json");
     res.end(JSON.stringify({ok:healthy,workerId,runtime:environment,lastTick}));
     return;
