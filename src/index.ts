@@ -6,3 +6,4 @@ export * from "./supabase-execution-ledger.js";
 export * from "./control-plane-client.js";
 export * from "./work-queue-client.js";
 export * from "./worker-orchestrator.js";
+export * from "./ephemeral-sandbox-fleet.js";
