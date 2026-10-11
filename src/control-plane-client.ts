@@ -1,10 +1,12 @@
 import type { BootstrapAuthorization, CapabilityRequirement } from "./types.js";
 import type { HttpFetchLike } from "./supabase-execution-ledger.js";
+import { boundedRequest } from "./bounded-request.js";
 
 export interface ControlPlaneClientConfig {
   baseUrl: string;
   internalServiceToken: string;
   fetchImpl?: HttpFetchLike;
+  requestTimeoutMs?: number;
 }
 
 export interface AuthorizationRequest {
@@ -44,6 +46,7 @@ export class ControlPlaneClient {
   }
 
   async requestMandatoryAuthorization(input: AuthorizationRequest): Promise<BootstrapAuthorization> {
+    return boundedRequest("CONTROL_PLANE_AUTHORIZATION",this.config.requestTimeoutMs ?? 12000,async(signal)=>{
     const response=await resolveFetch(this.config)(
       endpointFor(this.config.baseUrl),
       {
@@ -54,6 +57,7 @@ export class ControlPlaneClient {
           Accept:"application/json",
         },
         body:JSON.stringify(input),
+        signal,
       },
     );
     const text=await response.text();
@@ -64,5 +68,6 @@ export class ControlPlaneClient {
       return body.authorization;
     }
     throw new Error(`CONTROL_PLANE_AUTHORIZATION_FAILED:${response.status}:${body.code ?? "UNKNOWN"}`);
+    });
   }
 }
