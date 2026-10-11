@@ -97,7 +97,7 @@ BEGIN
       AND q.status='LEASED'
     ORDER BY l.expires_at ASC
     FOR UPDATE OF l,q SKIP LOCKED
-    LIMIT pg_catalog.greatest(p_limit-v_reconciled,0)
+    LIMIT CASE WHEN p_limit>v_reconciled THEN p_limit-v_reconciled ELSE 0 END
   LOOP
     UPDATE public.x1_task_leases
     SET status='EXPIRED',updated_at=now()
