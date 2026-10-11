@@ -6,6 +6,12 @@ import { SupabaseWorkQueue } from "./work-queue-client.js";
 import type { ExecutionLedger } from "./execution-ledger.js";
 import type { LeasedWork } from "./types.js";
 
+export function executionAttemptKey(baseKey:string,attempt:number):string {
+  if(!/^[0-9a-f]{64}$/.test(baseKey) || !Number.isInteger(attempt) ||
+     attempt<1 || attempt>10) throw new Error("EXECUTION_ATTEMPT_KEY_INVALID");
+  return createHash("sha256").update(baseKey+":"+String(attempt)).digest("hex");
+}
+
 export type WorkerTickStatus = "IDLE" | "COMPLETED" | "BLOCKED" | "FAILED";
 
 export interface WorkerTickResult<T=unknown> {
@@ -89,9 +95,7 @@ export async function processNextWork<T=unknown>(
     agentId:config.workerId,
     // One stable key per task attempt. A failed attempt must not poison the
     // next lease via x1_execution_ledger_idempotency_key_key.
-    idempotencyKey:createHash("sha256").update(
-      work.idempotency_key+":"+String(work.attempt)
-    ).digest("hex"),
+    idempotencyKey:executionAttemptKey(work.idempotency_key,work.attempt),
     attempt:work.attempt,
     completionReceiptId:`worker:${work.work_id}:${work.attempt}`,
   } satisfies SupabaseExecutionLedgerConfig);
