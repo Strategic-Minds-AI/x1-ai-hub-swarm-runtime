@@ -118,7 +118,18 @@ test("invalid GitHub source and missing provider keys fail closed",async()=>{
  const p=compileX1PreviewPack(work());
  const provider=createX1PreviewHttpProvider({githubToken:"g",vercelToken:"v",
   fetchImpl:async()=>new Response(JSON.stringify({object:{sha:"wrong"}}),{status:200})});
- await assert.rejects(()=>provider.commitSource(p),/X1_SOURCE_BASE_UNVERIFIED/);
+ await assert.rejects(()=>provider.commitSource(p),/X1_SOURCE_BASE_DRIFT_OR_UNVERIFIED/);
+});
+test("expired lease and source SHA drift fail before any remote mutation",async()=>{
+ const stale=work();
+ stale.lease.expiresAt=new Date(Date.now()+9000).toISOString();
+ assert.throws(()=>compileX1PreviewPack(stale),/X1_PREVIEW_LEASE_NOT_SAFE_FOR_EXTERNAL_WRITE/);
+ const noBase=work({source_sha:null});
+ assert.throws(()=>compileX1PreviewPack(noBase),/X1_BASE_SOURCE_SHA_REQUIRED/);
+ const pack=compileX1PreviewPack(work());
+ const provider=createX1PreviewHttpProvider({githubToken:"test-gh",vercelToken:"test-v",
+  fetchImpl:async()=>new Response(JSON.stringify({object:{sha:"f".repeat(40)}}),{status:200})});
+ await assert.rejects(()=>provider.commitSource(pack),/X1_SOURCE_BASE_DRIFT_OR_UNVERIFIED/);
 });
 test("browser validator failure prevents a success receipt",async()=>{
  await assert.rejects(()=>executeX1PromptPreview(work(),{
