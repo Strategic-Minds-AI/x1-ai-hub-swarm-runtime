@@ -44,7 +44,7 @@ export interface OwnedResource {
   externalId: string;
   ownerTag: string;
   resourceKey: string;
-  environment: "sandbox" | "preview";
+  environment: "sandbox" | "preview" | "production";
 }
 
 export class SandboxGuardError extends Error {
@@ -101,6 +101,7 @@ export function assertSandboxOperation(
 ): void {
   requireCondition(actor.verifiedByServer && actor.approvedScope === "sandbox", "TRUSTED_SANDBOX_PRINCIPAL_REQUIRED");
   requireCondition(actor.tenantId === workspace.tenantId, "CROSS_TENANT_DENIED");
+  requireCondition(!Number.isNaN(now.getTime()), "INVALID_CLOCK");
   requireCondition(now.getTime() < Date.parse(workspace.expiresAt), "SANDBOX_EXPIRED");
   requireCondition(["LEASED", "BUILDING", "TESTING", "REPAIRING"].includes(workspace.state), "WORKSPACE_NOT_MUTABLE");
   requireCondition(["WRITE_WORKTREE", "RUN_TESTS", "REPLACE_GENERATED_ASSET", "DELETE_OWNED_RESOURCE", "PREVIEW_BUILD"].includes(action), "ACTION_NOT_SANDBOX_ALLOWLISTED");
