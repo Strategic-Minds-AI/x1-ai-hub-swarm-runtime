@@ -16,6 +16,7 @@ const HTML=['<!doctype html><html lang="en"><head><meta name="robots" content="n
 '<p>An immutable GitHub source SHA and Vercel preview deployment identify the exact delivered version.</p>',
 '<p>Rollback remains an independent provider operation, never silently triggered by this renderer.</p>',
 '<p>The command prompt acts as source context and is not treated as privileged code authorization.</p>',
+'<p>Validation must include meaningful browser interactions, responsive geometry, correct link behavior, and a real reachable preview. The approved external provider may create an isolated deployment only after source revision identity is independently established.</p>',
 '</section></main><footer>Strategic Minds AI · PREVIEW</footer></body></html>'].join("");
 const sha=s=>createHash("sha256").update(s).digest("hex");
 function work(other={}){
