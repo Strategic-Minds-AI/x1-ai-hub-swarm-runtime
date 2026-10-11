@@ -1,5 +1,6 @@
 import type { LeasedWork } from "./types.js";
 import type { HttpFetchLike } from "./supabase-execution-ledger.js";
+import { boundedRequest } from "./bounded-request.js";
 
 export interface SupabaseWorkQueueConfig {
   url?: string;
@@ -11,6 +12,7 @@ export interface SupabaseWorkQueueConfig {
   environment: "development" | "preview" | "production";
   leaseTtlSeconds?: number;
   fetchImpl?: HttpFetchLike;
+  requestTimeoutMs?: number;
 }
 
 function resolveFetch(config: SupabaseWorkQueueConfig): HttpFetchLike {
@@ -35,6 +37,7 @@ export class SupabaseWorkQueue {
   }
 
   private async rpc(name:string,body:Record<string,unknown>): Promise<unknown> {
+    return boundedRequest("WORK_QUEUE_RPC",this.config.requestTimeoutMs ?? 12000,async(signal)=>{
     const fetchImpl=resolveFetch(this.config);
     if(this.config.gatewayUrl && this.config.internalServiceToken) {
       const response=await fetchImpl(this.config.gatewayUrl,{
@@ -45,6 +48,7 @@ export class SupabaseWorkQueue {
           Accept:"application/json",
         },
         body:JSON.stringify({op:"rpc",name,body}),
+        signal,
       });
       const text=await response.text();
       let parsed:any={};
@@ -66,6 +70,7 @@ export class SupabaseWorkQueue {
           Accept:"application/json",
         },
         body:JSON.stringify(body),
+        signal,
       },
     );
     const text=await response.text();
@@ -75,6 +80,7 @@ export class SupabaseWorkQueue {
       throw new Error(`WORK_QUEUE_RPC_FAILED:${response.status}:${code}`);
     }
     return text ? JSON.parse(text) : null;
+    });
   }
 
   async leaseNextWork(): Promise<LeasedWork | null> {
