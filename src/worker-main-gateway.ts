@@ -21,8 +21,9 @@ function required(name:string):string {
 const port=Number(process.env.PORT ?? "3000");
 if(!Number.isInteger(port) || port<=0 || port>65535) throw new Error("PORT_INVALID");
 
-const workerId=process.env.X1_WORKER_ID ?? "x1-swarm-preview-1";
-const environment=(process.env.X1_RUNTIME_ENV ?? "preview") as "development"|"preview"|"production";
+// A missing runtime identity must never silently connect to Preview.
+const workerId=required("X1_WORKER_ID");
+const environment=required("X1_RUNTIME_ENV") as "development"|"preview"|"production";
 if(!["development","preview","production"].includes(environment)) throw new Error("X1_RUNTIME_ENV_INVALID");
 const sourceSha=process.env.RAILWAY_GIT_COMMIT_SHA ?? process.env.X1_SOURCE_SHA ?? null;
 
