@@ -17,7 +17,7 @@ function stable(v) {
     .map(([k,val])=>JSON.stringify(k)+":"+stable(val)).join(",")+"}";
   return JSON.stringify(v);
 }
-function authorization() {
+function authorization(overrides={}) {
   const a={
     authorization_id:"auth-synthetic",task_id:"task-1",agent_id:"worker-1",tenant_id:tenant,
     requested_action:"READ_ONLY",capabilities_required:[],capabilities_resolved:[],
@@ -25,6 +25,7 @@ function authorization() {
     issued_at:new Date(Date.now()-60_000).toISOString(),expires_at:new Date(Date.now()+240_000).toISOString(),
     allowed:true,blockers:[],receipt_id:"receipt-synthetic",
   };
+  Object.assign(a,overrides);
   return {...a,signature:{algorithm:"HMAC-SHA256",
     value:createHmac("sha256",key).update(stable(a)).digest("hex")}};
 }
@@ -209,4 +210,57 @@ test("a stuck tick triggers bounded shutdown without false completion",async()=>
   assert.equal(gate.stopping,true);
   release();
   await active;
+});
+
+
+test("wrong action class is rejected even with a valid signature",async()=>{
+  const auth=authorization();
+  const ctx={taskId:"task-1",agentId:"worker-1",tenantId:tenant,
+    requestedAction:"PRODUCTION_RELEASE"};
+  await assert.rejects(()=>executeAuthorizedTask({
+    authorization:auth,context:ctx,lease:work().lease,signingKey:key,
+    ledger:{tryStart:async()=>true,complete:async()=>{},fail:async()=>{}},
+    handler:async()=>{throw new Error("MUST_NOT_RUN");},
+  }),/AUTHORIZATION_ACTION_MISMATCH/);
+});
+test("invalid signed authorization expiry fails closed",async()=>{
+  const auth=authorization({expires_at:"not-a-date"});
+  const ctx={taskId:"task-1",agentId:"worker-1",tenantId:tenant,
+    requestedAction:"READ_ONLY"};
+  await assert.rejects(()=>executeAuthorizedTask({
+    authorization:auth,context:ctx,lease:work().lease,signingKey:key,
+    ledger:{tryStart:async()=>true,complete:async()=>{},fail:async()=>{}},
+    handler:async()=>{},
+  }),/AUTHORIZATION_TIME_WINDOW_INVALID/);
+});
+test("long-lived signed authorization is rejected",async()=>{
+  const auth=authorization({expires_at:new Date(Date.now()+24*60*60*1000).toISOString()});
+  const ctx={taskId:"task-1",agentId:"worker-1",tenantId:tenant,
+    requestedAction:"READ_ONLY"};
+  await assert.rejects(()=>executeAuthorizedTask({
+    authorization:auth,context:ctx,lease:work().lease,signingKey:key,
+    ledger:{tryStart:async()=>true,complete:async()=>{},fail:async()=>{}},
+    handler:async()=>{},
+  }),/AUTHORIZATION_TIME_WINDOW_INVALID/);
+});
+test("invalid lease timestamps do not pass expiry comparisons",async()=>{
+  const ctx={taskId:"task-1",agentId:"worker-1",tenantId:tenant,
+    requestedAction:"READ_ONLY"};
+  const invalidLease={...work().lease,expiresAt:"definitely-not-a-date"};
+  await assert.rejects(()=>executeAuthorizedTask({
+    authorization:authorization(),context:ctx,lease:invalidLease,signingKey:key,
+    ledger:{tryStart:async()=>true,complete:async()=>{},fail:async()=>{}},
+    handler:async()=>{},
+  }),/LEASE_TIME_WINDOW_INVALID/);
+});
+test("uncertain ledger claim leaves queue leased, with no execution or second finalize",async()=>{
+  let executed=0;
+  const ledger={tryStart:async()=>{throw new Error("NETWORK_LOST_AFTER_CLAIM");},
+    complete:async()=>{},fail:async()=>{}};
+  const {args,finishes}=queueAndControl(ledger,async()=>{executed++;});
+  const result=await processNextWork(args);
+  assert.equal(result.status,"FAILED");
+  assert.equal(result.code,"EXECUTION_CLAIM_UNCONFIRMED");
+  assert.deepEqual(finishes,[]);
+  assert.equal(executed,0);
 });
