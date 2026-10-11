@@ -19,8 +19,8 @@ test("reject invalid tenant",()=>rejects(()=>fresh({tenantId:"not-a-uuid"}),"TEN
 test("reject path traversal in client slug",()=>rejects(()=>fresh({clientSlug:"../../prod"}),"CLIENT_SLUG_INVALID"));
 test("reject missing source checksum",()=>rejects(()=>fresh({sourceSha:"main"}),"SOURCE_SHA_REQUIRED"));
 test("reject unlimited sandbox TTL",()=>rejects(()=>fresh({ttlMinutes:5000}),"TTL_OUT_OF_BOUNDS"));
-test("reject spend without explicit budget approval reference",()=>rejects(()=>fresh({budgetCents:1}),"BUDGET_APPROVAL_REQUIRED"));
-test("accept bounded budget only with scoped approval reference",()=>assert.equal(fresh({budgetCents:10,budgetApprovalRef:"signed-approval-1"}).budgetCents,10));
+test("reject spend without trusted server-side budget verifier",()=>rejects(()=>fresh({budgetCents:1}),"PAID_SANDBOX_POLICY_NOT_BOUND"));
+test("reject forged approval reference even when budget amount is bounded",()=>rejects(()=>fresh({budgetCents:10,budgetApprovalRef:"self-signed-string"}),"PAID_SANDBOX_POLICY_NOT_BOUND"));
 test("can't execute when not leased",()=>{const w=fresh();rejects(()=>assertSandboxOperation(w,actor(w),"RUN_TESTS",owned(w),TIME),"WORKSPACE_NOT_MUTABLE");});
 test("allow zero-cost owned sandbox test after lease",()=>{const w=active();assert.doesNotThrow(()=>assertSandboxOperation(w,actor(w),"RUN_TESTS",owned(w),TIME));});
 test("reject cross tenant use",()=>{const w=active();rejects(()=>assertSandboxOperation(w,actor(w,{tenantId:T2}),"RUN_TESTS",owned(w),TIME),"CROSS_TENANT_DENIED");});
