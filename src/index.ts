@@ -7,3 +7,4 @@ export * from "./control-plane-client.js";
 export * from "./work-queue-client.js";
 export * from "./worker-orchestrator.js";
 export * from "./ephemeral-sandbox-fleet.js";
+export * from "./sandbox-preview-pipeline.js";
