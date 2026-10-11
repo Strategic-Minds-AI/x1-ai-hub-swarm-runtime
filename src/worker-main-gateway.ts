@@ -11,6 +11,8 @@ import { ControlPlaneClient } from "./control-plane-client.js";
 import { SupabaseWorkQueue } from "./work-queue-client.js";
 import { processNextWork } from "./worker-orchestrator.js";
 import { SingleFlightGate } from "./single-flight.js";
+import { handleWleSyntheticPreview, WLE_PREVIEW_KIND } from "./wle-preview-adapter.js";
+import type { WlePrivatePreviewReceipt } from "./wle-preview-adapter.js";
 
 function required(name:string):string {
   const value=process.env[name];
@@ -65,6 +67,20 @@ async function tick():Promise<void> {
       internalServiceToken:internalToken,
       workerId,
       handler:async(work)=>{
+        // Preview-only WLE branch path; off unless explicitly enabled in
+        // the existing X1 preview worker. Signed X1 authorization and lease
+        // are verified before processNextWork invokes this handler.
+        if(work.action_class==="NON_PRODUCTION_MUTATION" &&
+           work.payload?.kind===WLE_PREVIEW_KIND) {
+          if(process.env.WLE_PREVIEW_ADAPTER_ENABLED!=="true") {
+            throw new Error("WLE_PREVIEW_ADAPTER_DISABLED");
+          }
+          return handleWleSyntheticPreview(work,{
+            environment,systemTenantId:tenantId,workerId,
+            supabaseUrl:required("SUPABASE_URL"),
+            serviceRoleKey:required("SUPABASE_SERVICE_ROLE_KEY"),
+          });
+        }
         if(work.action_class!=="READ_ONLY") throw new Error("NO_PREVIEW_HANDLER_FOR_MUTATION");
         return {
           acknowledged:true,
@@ -76,6 +92,14 @@ async function tick():Promise<void> {
       },
     });
     lastTick={at:new Date().toISOString(),status:result.status,code:result.code};
+    const wleOutput=result.output as WlePrivatePreviewReceipt | undefined;
+    if(result.status==="COMPLETED" && wleOutput?.kind==="WLE_STAGING_PRIVATE_PREVIEW_V1") {
+      // Provenance only. Never log content, server credentials or user data.
+      console.info(JSON.stringify({event:"WLE_PRIVATE_PREVIEW_STORED",
+        workId:result.workId,tenantId:wleOutput.tenant_id,
+        sha256:wleOutput.sha256,bytes:wleOutput.byte_size,
+        storagePath:wleOutput.storage_path,private:true,released:false}));
+    }
   } catch(error) {
     lastTick={
       at:new Date().toISOString(),
