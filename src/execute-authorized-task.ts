@@ -15,7 +15,13 @@ export interface AuthorizedTaskInput<T> {
 function verifyLease(lease: TaskLease, context: ExecutionContext, now: Date): void {
   if (!lease.leaseId || !lease.taskId || !lease.holderAgentId) throw new Error("LEASE_INCOMPLETE");
   if (lease.taskId !== context.taskId || lease.holderAgentId !== context.agentId) throw new Error("LEASE_CONTEXT_MISMATCH");
-  if (Date.parse(lease.expiresAt) <= now.getTime()) throw new Error("LEASE_EXPIRED");
+  const expiresAt=Date.parse(lease.expiresAt);
+  const acquiredAt=Date.parse(lease.acquiredAt);
+  if(!Number.isFinite(expiresAt) || !Number.isFinite(acquiredAt) ||
+     expiresAt<=acquiredAt || acquiredAt>now.getTime()+60*1000) {
+    throw new Error("LEASE_TIME_WINDOW_INVALID");
+  }
+  if(expiresAt<=now.getTime()) throw new Error("LEASE_EXPIRED");
 }
 
 export async function executeAuthorizedTask<T>(input: AuthorizedTaskInput<T>): Promise<T> {
