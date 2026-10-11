@@ -206,7 +206,7 @@ test("a stuck tick triggers bounded shutdown without false completion",async()=>
   let release;
   const pending=new Promise(resolve=>{release=resolve;});
   const active=gate.run(async()=>{await pending;});
-  assert.equal(await gate.stopAndDrain(60),false);
+  assert.equal(await gate.stopAndDrain(120),false);
   assert.equal(gate.stopping,true);
   release();
   await active;
