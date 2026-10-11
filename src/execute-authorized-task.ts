@@ -18,7 +18,8 @@ function verifyLease(lease: TaskLease, context: ExecutionContext, now: Date): vo
   const expiresAt=Date.parse(lease.expiresAt);
   const acquiredAt=Date.parse(lease.acquiredAt);
   if(!Number.isFinite(expiresAt) || !Number.isFinite(acquiredAt) ||
-     expiresAt<=acquiredAt || acquiredAt>now.getTime()+60*1000) {
+     expiresAt<=acquiredAt || expiresAt-acquiredAt>10*60*1000 ||
+     acquiredAt>now.getTime()+60*1000) {
     throw new Error("LEASE_TIME_WINDOW_INVALID");
   }
   if(expiresAt<=now.getTime()) throw new Error("LEASE_EXPIRED");
