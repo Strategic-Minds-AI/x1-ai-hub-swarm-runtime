@@ -71,7 +71,9 @@ export function prepareWorkspace(input: SandboxRequest, now: Date): Workspace {
   requireCondition(Number.isInteger(input.ttlMinutes) && input.ttlMinutes >= 5 && input.ttlMinutes <= MAX_TTL_MINUTES, "TTL_OUT_OF_BOUNDS");
   const cents = input.budgetCents ?? 0;
   requireCondition(Number.isInteger(cents) && cents >= 0 && cents <= MAX_BUDGET_CENTS, "BUDGET_OUT_OF_BOUNDS");
-  requireCondition(cents === 0 || Boolean(input.budgetApprovalRef?.trim()), "BUDGET_APPROVAL_REQUIRED");
+  // Only zero-spend scopes are enabled until the trusted signed-budget verifier is wired.
+  // A caller-supplied approval reference alone must NEVER authorize paid cloud provisioning.
+  requireCondition(cents === 0, "PAID_SANDBOX_POLICY_NOT_BOUND");
   const hash = createHash("sha256").update([input.tenantId, input.missionId, input.idempotencyKey].join(":")).digest("hex").slice(0,20);
   const id = "sbx-" + hash;
   return Object.freeze({
