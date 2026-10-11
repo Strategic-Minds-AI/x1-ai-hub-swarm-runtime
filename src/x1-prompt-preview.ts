@@ -28,15 +28,17 @@ function safeJson(response:Response):Promise<any> {
  return response.json().catch(()=>{throw new PreviewGateError("PROVIDER_JSON_INVALID");});
 }
 export interface PreviewPack {
- workId:string; tenantId:string; missionId:string|null; prompt:string;
+ workId:string; tenantId:string; missionId:string|null; prompt:string; baseSourceSha:string;
  html:string; sourceSha256:string; sourceBranch:string; sourcePath:string;
  vercelFiles:{file:string;data:string;encoding:"utf-8"}[];
 }
 export function compileX1PreviewPack(work:LeasedWork):PreviewPack {
  gate(work.action_class==="NON_PRODUCTION_MUTATION","X1_NONPRODUCTION_ACTION_REQUIRED");
  gate(UUID.test(work.tenant_id)&&UUID.test(work.work_id),"X1_IDENTITY_INVALID");
+ gate(SHA.test(work.source_sha??""),"X1_BASE_SOURCE_SHA_REQUIRED");
  gate(/^x1\.preview\.build\.[a-z0-9-]{6,72}$/.test(work.task_id),"X1_TASK_NOT_ALLOWED");
  gate(work.lease?.holderAgentId && work.lease.taskId===work.task_id,"X1_LEASE_CONTEXT_INVALID");
+ assertFreshLease(work);
  gate(work.payload && typeof work.payload==="object" && !Array.isArray(work.payload),"X1_PAYLOAD_INVALID");
  const p=work.payload;
  gate(Object.keys(p).every(k=>ALLOWED_KEYS.has(k)),"X1_UNEXPECTED_PAYLOAD_FIELD");
@@ -67,6 +69,7 @@ export function compileX1PreviewPack(work:LeasedWork):PreviewPack {
   {key:"Cache-Control",value:"private, no-store"}]}]},null,2);
  return Object.freeze({
   workId:work.work_id,tenantId:work.tenant_id,missionId:work.mission_id??null,
+  baseSourceSha:work.source_sha as string,
   prompt:p.prompt,html,sourceSha256:sha256(html),sourceBranch:branch,sourcePath:path,
   vercelFiles:[
    {file:"src/index.html",data:html,encoding:"utf-8" as const},
@@ -86,11 +89,20 @@ export interface X1PreviewReceipt {
  source_sha:string;source_url:string;source_branch:string;html_sha256:string;
  deployment_id:string;preview_url:string;release:"PREVIEW_ONLY";independent_qa:"PENDING";
 }
+export function assertFreshLease(work:LeasedWork):void {
+ const acquired=Date.parse(work.lease?.acquiredAt??"");
+ const expires=Date.parse(work.lease?.expiresAt??"");
+ const now=Date.now();
+ gate(Number.isFinite(acquired)&&Number.isFinite(expires)&&acquired<=now&&
+   expires>now+30000,"X1_PREVIEW_LEASE_NOT_SAFE_FOR_EXTERNAL_WRITE");
+}
 export async function executeX1PromptPreview(work:LeasedWork,provider:X1PreviewProvider):Promise<X1PreviewReceipt>{
  const pack=compileX1PreviewPack(work);
+ assertFreshLease(work);
  const source=await provider.commitSource(pack);
  gate(SHA.test(source?.sha??""),"X1_SOURCE_COMMIT_UNVERIFIED");
  gate(source.url.startsWith("https://github.com/"+GITHUB_REPO+"/"),"X1_SOURCE_REPO_MISMATCH");
+ assertFreshLease(work);
  const deployment=await provider.deployPreview(pack,source.sha);
  gate(/^dpl_[a-zA-Z0-9]+$/.test(deployment?.id??""),"X1_DEPLOYMENT_ID_INVALID");
  gate(deployment.target===null&&!deployment.alias?.length,"X1_RELEASE_TARGET_DENIED");
@@ -98,6 +110,7 @@ export async function executeX1PromptPreview(work:LeasedWork,provider:X1PreviewP
  gate(location.protocol==="https:"&&PREVIEW_HOST.test(location.hostname)&&
    location.pathname==="/"&&!location.search&&!location.hash,"X1_VERCEL_HOST_NOT_ALLOWED");
  await provider.verifyDeployed(pack,deployment,source.sha);
+ assertFreshLease(work);
  return {
   kind:X1_PROMPT_PREVIEW_KIND,status:"PREVIEW_BYTES_VERIFIED_PENDING_INDEPENDENT_BROWSER_QA",
   work_id:pack.workId,tenant_id:pack.tenantId,prompt_sha256:sha256(pack.prompt),
@@ -130,7 +143,7 @@ export function createX1PreviewHttpProvider(config:X1PreviewProviderConfig):X1Pr
    // existing X1 development branch. The per-job branch is created only once.
    const source=await api(GITHUB_API+"/git/ref/heads/"+SOURCE_BRANCH,config.githubToken,"GET");
    const parent=source?.object?.sha;
-   gate(SHA.test(parent??""),"X1_SOURCE_BASE_UNVERIFIED");
+   gate(SHA.test(parent??"")&&parent===pack.baseSourceSha,"X1_SOURCE_BASE_DRIFT_OR_UNVERIFIED");
    const commit=await api(GITHUB_API+"/git/commits/"+parent,config.githubToken,"GET");
    gate(SHA.test(commit?.tree?.sha??""),"X1_SOURCE_TREE_UNVERIFIED");
    const tree=await api(GITHUB_API+"/git/trees",config.githubToken,"POST",{
