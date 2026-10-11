@@ -115,15 +115,16 @@ export async function runAutoBuildDryRun(
       if (passes) return last;
       problems.push(...review.checks.filter(c => !c.pass).map(c => c.name + ": " + c.evidence));
     } catch (error) {
-      const reason = error instanceof Error ? error.message.split(":")[0] : "UNKNOWN";
-      last = {
+      const reason = error instanceof Error ? (error.message.split(":")[0] ?? "UNKNOWN") : "UNKNOWN";
+      const failureReceipt: CycleReceipt = {
         packetId: packet.packetId, missionId: packet.missionId, sourceSha: packet.sourceSha, attempt,
         outcome: attempt === maxAttempts ? "REPAIR_EXHAUSTED" : "BLOCKED",
         candidatePaths: [], checks: [], reason, validationReceiptId: null, dryRun: true,
       };
-      await adapters.record(last);
+      last = failureReceipt;
+      await adapters.record(failureReceipt);
       // Security / scope / missing-evidence failures should NOT trigger repeated paid prompts.
-      if (/PATH_|CONTENT_|PROPOSAL|INDEPENDENT_|REQUIRED_CHECK_|RECORD|AUTH|SCOPE/.test(reason)) return last;
+      if (/PATH_|CONTENT_|PROPOSAL|INDEPENDENT_|REQUIRED_CHECK_|RECORD|AUTH|SCOPE/.test(reason)) return failureReceipt;
       problems.push(reason);
     }
   }
