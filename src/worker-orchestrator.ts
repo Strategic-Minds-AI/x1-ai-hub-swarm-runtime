@@ -106,7 +106,8 @@ export async function processNextWork<T=unknown>(
     const code=codeFor(error);
     // Unconfirmed durable receipts must be reconciled against the ledger and
     // original lease. Marking these FAILED could trigger duplicate side effects.
-    if(code==="EXECUTION_COMPLETION_UNCONFIRMED" ||
+    if(code==="EXECUTION_CLAIM_UNCONFIRMED" ||
+       code==="EXECUTION_COMPLETION_UNCONFIRMED" ||
        code==="EXECUTION_FAILURE_RECEIPT_UNCONFIRMED") {
       return {status:"FAILED",workId:work.work_id,code};
     }
