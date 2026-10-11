@@ -64,7 +64,11 @@ export class ControlPlaneClient {
     let body:AuthorizationResponse={};
     try { body=text ? JSON.parse(text) as AuthorizationResponse : {}; } catch {}
 
-    if((response.ok || response.status===403) && body.authorization) {
+    if (response.ok && body.authorization && body.authorization.allowed === true) {
+      return body.authorization;
+    }
+    // A 403 response can carry a signed explicit denial, but never an allow.
+    if (response.status === 403 && body.authorization && body.authorization.allowed === false) {
       return body.authorization;
     }
     throw new Error(`CONTROL_PLANE_AUTHORIZATION_FAILED:${response.status}:${body.code ?? "UNKNOWN"}`);
