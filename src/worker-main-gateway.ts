@@ -5,12 +5,13 @@ declare const process: {
   on(event:"SIGTERM"|"SIGINT", handler:()=>void): void;
 };
 
-import { createHash } from "node:crypto";
+import { createHash, timingSafeEqual } from "node:crypto";
 import { createServer } from "node:http";
 import { ControlPlaneClient } from "./control-plane-client.js";
 import { SupabaseWorkQueue } from "./work-queue-client.js";
 import { processNextWork } from "./worker-orchestrator.js";
 import { SingleFlightGate } from "./single-flight.js";
+import { createDockerBridge } from "./local-docker-bridge.js";
 
 function required(name:string):string {
   const value=process.env[name];
@@ -93,7 +94,35 @@ if(!Number.isInteger(intervalMs) || intervalMs<1000 || intervalMs>60000) throw n
 const timer=setInterval(()=>void singleFlight.run(tick),intervalMs);
 void singleFlight.run(tick);
 
+
+const diagnosticEnabled = environment === "preview" && process.env.X1_LOCAL_DOCKER_DIAGNOSTICS === "enabled";
+const bridge = diagnosticEnabled && process.env.LOCAL_DOCKER_URL && process.env.LOCAL_DOCKER_TOKEN
+  ? createDockerBridge({url:process.env.LOCAL_DOCKER_URL,token:process.env.LOCAL_DOCKER_TOKEN})
+  : null;
+
 const server=createServer((req,res)=>{
+  // Disabled unless explicitly enabled in preview, with all credentials.
+  if(req.url==="/internal/docker-bridge/health") {
+    res.setHeader("content-type","application/json");
+    res.setHeader("cache-control","no-store");
+    if(!bridge || req.method!=="GET") {
+      res.statusCode=404; res.end(JSON.stringify({ok:false,code:"NOT_FOUND"})); return;
+    }
+    const provided=req.headers.authorization ?? "";
+    const expected="Bearer "+internalToken;
+    const suppliedHash=createHash("sha256").update(provided).digest();
+    const expectedHash=createHash("sha256").update(expected).digest();
+    if(!timingSafeEqual(suppliedHash,expectedHash)) {
+      res.statusCode=401; res.end(JSON.stringify({ok:false,code:"UNAUTHORIZED"})); return;
+    }
+    void bridge.probe("health").then(()=>{
+      res.statusCode=200; res.end(JSON.stringify({ok:true,bridge:"reachable"}));
+    }).catch(()=>{
+      res.statusCode=503; res.end(JSON.stringify({ok:false,code:"BRIDGE_UNAVAILABLE"}));
+    });
+    return;
+  }
+
   // Railway continues using /healthz for process liveness. /readyz separately
   // exposes queue-poll freshness without restarting a working worker on a
   // temporary control-plane outage.
