@@ -91,7 +91,17 @@ export class SupabaseWorkQueue {
       p_ttl_seconds:this.config.leaseTtlSeconds ?? 300,
     });
     if(result===null) return null;
-    return result as LeasedWork;
+    // An RPC/gateway response is not itself proof of tenant or lease identity.
+    // Reject cross-tenant or cross-worker leases before requesting authorization.
+    if(!result || typeof result!=="object") throw new Error("WORK_QUEUE_LEASE_MALFORMED");
+    const lease=result as Partial<LeasedWork>;
+    if(lease.tenant_id!==this.config.tenantId ||
+       lease.lease?.holderAgentId!==this.config.workerId ||
+       lease.lease?.taskId!==lease.task_id ||
+       !lease.work_id || !lease.task_id || !lease.lease?.leaseId) {
+      throw new Error("WORK_QUEUE_LEASE_CONTEXT_MISMATCH");
+    }
+    return lease as LeasedWork;
   }
 
   async finishWork(
