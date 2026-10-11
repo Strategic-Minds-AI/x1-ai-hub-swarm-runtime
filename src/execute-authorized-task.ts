@@ -29,9 +29,15 @@ export async function executeAuthorizedTask<T>(input: AuthorizedTaskInput<T>): P
   verifyBootstrapAuthorization(input.authorization, input.context, input.signingKey, now);
   verifyLease(input.lease, input.context, now);
 
-  if (!(await input.ledger.tryStart(input.context.taskId, input.lease.leaseId))) {
-    throw new Error("DUPLICATE_EXECUTION");
+  // An RPC timeout may occur *after* the database committed the claim.
+  // Never mark that unknown lease as failed and trigger a second execution.
+  let claimed:boolean;
+  try {
+    claimed=await input.ledger.tryStart(input.context.taskId, input.lease.leaseId);
+  } catch {
+    throw new Error("EXECUTION_CLAIM_UNCONFIRMED");
   }
+  if(!claimed) throw new Error("DUPLICATE_EXECUTION");
 
   // Handler failure and durable receipt failure are distinct. After a handler
   // has returned, NEVER mark the execution failed just because the provider
