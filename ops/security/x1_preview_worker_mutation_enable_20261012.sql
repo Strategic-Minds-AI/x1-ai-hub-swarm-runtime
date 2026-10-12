@@ -23,11 +23,11 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_proc p
     WHERE p.pronamespace='public'::pg_catalog.regnamespace
     AND p.proname='x1_complete_execution'
-    AND pg_catalog.position('EXECUTION_LEASE_EXPIRED_OR_NOT_ACTIVE' IN pg_catalog.pg_get_functiondef(p.oid))>0)
+    AND pg_catalog.strpos(pg_catalog.pg_get_functiondef(p.oid),'EXECUTION_LEASE_EXPIRED_OR_NOT_ACTIVE')>0)
   OR NOT EXISTS (SELECT 1 FROM pg_catalog.pg_proc p
     WHERE p.pronamespace='public'::pg_catalog.regnamespace
     AND p.proname='x1_finish_work'
-    AND pg_catalog.position('WORK_COMPLETION_RECEIPT_NOT_VERIFIED' IN pg_catalog.pg_get_functiondef(p.oid))>0)
+    AND pg_catalog.strpos(pg_catalog.pg_get_functiondef(p.oid),'WORK_COMPLETION_RECEIPT_NOT_VERIFIED')>0)
   THEN RAISE EXCEPTION 'X1_STAGING_COMPLETION_FENCES_MISSING'; END IF;
 
   -- Each independent probe must have a durable PASS receipt bound to
