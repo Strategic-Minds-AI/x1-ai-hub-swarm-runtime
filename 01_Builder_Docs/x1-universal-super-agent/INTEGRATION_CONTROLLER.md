@@ -7,7 +7,7 @@ PHASE: BRANCH-SAFE INTEGRATION. STATUS: STAGED; NOT ACTIVATED.
 - Integration branch: feature/x1-universal-agent-kit-20261012
 - Baseline: feature/x1-prompt-to-vercel-preview-v1-20261011
 - Supabase staging project: uvdkzsbjackpjvpoxtyk
-- Railway project: X1 AI Hub Swarm Preview (f442cf0a-7275-4c2b-bf73-d07dca4f9c9)
+- Railway project: X1 AI Hub Swarm Preview (f442cf0a-7275-4c2b-bf73-2dda4254e002)
 - Railway services: x1-swarm-preview, project-zero-control-plane-preview
 - WARNING: Railway environment ID d4cd61a5-fe51-4eba-afb7-286267861734 is actually named production and is PROTECTED.
 - Local authorized root: C:\_Strategic_Minds_AI_OS
