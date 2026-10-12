@@ -175,12 +175,30 @@ export function createX1PreviewHttpProvider(config:X1PreviewProviderConfig):X1Pr
    gate(typeof d.url==="string","X1_DEPLOYMENT_URL_MISSING");
    return {id:d.id,url:"https://"+d.url+"/",target:d.target??null,alias:d.alias??[]};
   },
-  async verifyDeployed(pack,deployment){
+  async verifyDeployed(pack,deployment,sourceSha){
+   gate(SHA.test(sourceSha),"X1_DEPLOY_SOURCE_REQUIRED");
    let ready=false;
    for(let attempt=0;attempt<9;attempt++){
     const d=await api("https://api.vercel.com/v13/deployments/"+deployment.id+
       "?teamId="+VERCEL_TEAM,config.vercelToken,"GET");
-    const state=(d.deployment??d).readyState;
+    const live=d.deployment??d;
+    // Provider readiness alone is not artifact identity. Verify the exact
+    // deployment/project, byte hash, source and job before fetching its URL.
+    gate(live.id===deployment.id &&
+      (live.projectId??live.project?.id)===VERCEL_PROJECT,
+      "X1_DEPLOYMENT_IDENTITY_MISMATCH");
+    gate(live.target==null && (!live.alias ||
+      (Array.isArray(live.alias)&&live.alias.length===0)),
+      "X1_RELEASE_TARGET_DENIED");
+    gate(typeof live.url==="string" &&
+      "https://"+live.url+"/"===deployment.url,
+      "X1_DEPLOYMENT_URL_MISMATCH");
+    gate(live.meta?.x1Packet===pack.workId &&
+      live.meta?.x1SourceSha===sourceSha &&
+      live.meta?.x1HtmlHash===pack.sourceSha256 &&
+      live.meta?.x1Release==="PREVIEW_ONLY",
+      "X1_DEPLOYMENT_ARTIFACT_MISMATCH");
+    const state=live.readyState;
     if(state==="READY"){ready=true;break;}
     gate(!["ERROR","CANCELED","BLOCKED"].includes(state),"X1_DEPLOYMENT_FAILED");
     await new Promise(resolve=>setTimeout(resolve,1000));
