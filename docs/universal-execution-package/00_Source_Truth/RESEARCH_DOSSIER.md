@@ -1,0 +1,6 @@
+# Current official research
+Research date 2026-10-12 UTC / 2026-10-11 America/New_York. Official Google Search Essentials inspected in Browser; topic documentation retrieved through web research. See RESEARCH_SOURCES.json for exact primary sources.
+VERIFIED: Google documents technical eligibility, spam policies, sitemap submission, structured data, locale annotations and measurement integration. It explicitly does not guarantee indexing or serving. AI Search uses ordinary SEO fundamentals; no special AI optimization file is necessary.
+INFERRED X1 policy: evidence-gated per-market index eligibility, finite controlled batches and truthful local coverage are the appropriate factory guardrails. These are X1 implementation requirements, not Google certification.
+UNKNOWN: future site rankings, index timing, approved visual reference for each project, current provider/model comparative superiority, full provider activation and complete inventory of hundreds of historical systems.
+Scope: this packet extends operating rules and reusable document generation; it does not certify a running deployed universal generator or a finished autonomous coding factory. Search rules apply to public web content, not every internal desktop/app screen. Industry/jurisdiction-specific obligations require their own evidence and tests.

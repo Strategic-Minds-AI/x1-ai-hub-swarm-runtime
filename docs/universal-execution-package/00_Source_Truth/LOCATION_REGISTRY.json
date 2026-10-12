@@ -1,0 +1,62 @@
+[
+  {
+    "name": "Local root",
+    "location": "C:\\_Strategic_Minds_AI_OS",
+    "status": "DIRECTORY_READ_VERIFIED"
+  },
+  {
+    "name": "Digital Dominance",
+    "location": "C:\\_Strategic_Minds_AI_OS\\26_DIGITAL_DOMINANCE",
+    "status": "DIRECTORY_AND_PROJECT_INSTRUCTIONS_READ"
+  },
+  {
+    "name": "X1 Hub",
+    "location": "C:\\_Strategic_Minds_AI_OS\\38_X1_AI_HUB",
+    "status": "DIRECTORY_READ_VERIFIED"
+  },
+  {
+    "name": "Universal Generator",
+    "location": "C:\\_Strategic_Minds_AI_OS\\52_UNIVERSAL GENERATOR",
+    "status": "DIRECTORY_AND_BUILD_PACKET_READ"
+  },
+  {
+    "name": "Universal systems",
+    "location": "C:\\_Strategic_Minds_AI_OS\\16_UNIVERSAL SYSTEMS",
+    "status": "ROOT_ENTRY_OBSERVED_ONLY"
+  },
+  {
+    "name": "Finished systems",
+    "location": "C:\\_Strategic_Minds_AI_OS\\14_FINISHED_SYSTEMS",
+    "status": "ROOT_ENTRY_OBSERVED_ONLY"
+  },
+  {
+    "name": "Website factory",
+    "location": "C:\\_Strategic_Minds_AI_OS\\39_WEBSITE_FACTORY",
+    "status": "ROOT_ENTRY_OBSERVED_ONLY"
+  },
+  {
+    "name": "Website Launch Engine",
+    "location": "C:\\_Strategic_Minds_AI_OS\\49_WEBSITE LAUNCH EGINE",
+    "status": "ROOT_ENTRY_OBSERVED_ONLY"
+  },
+  {
+    "name": "Studio sync reference",
+    "location": "https://legal-lead-logic.base44.app/admin/studio",
+    "status": "USER_REFERENCE_NOT_FRESHLY_VALIDATED"
+  },
+  {
+    "name": "Approved donor visual",
+    "location": "https://website-launch-engine-xps.vercel.app/",
+    "status": "EXISTING_LOCAL_INSTRUCTIONS_REFERENCE"
+  },
+  {
+    "name": "Drive Digital Dominance",
+    "location": "https://drive.google.com/drive/folders/13bB_IQjfyztizBSNrahHeGVL6N_7GEzj",
+    "status": "FOLDER_METADATA_VERIFIED"
+  },
+  {
+    "name": "Alternative Drive mirror",
+    "location": "https://drive.google.com/drive/folders/1XnDZZkx3JuGn0Db8VpP1CDiqWSiMdo7v",
+    "status": "FOLDER_METADATA_VERIFIED_CANONICALITY_UNKNOWN"
+  }
+]

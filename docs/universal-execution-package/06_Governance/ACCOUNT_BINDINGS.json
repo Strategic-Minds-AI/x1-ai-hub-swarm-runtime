@@ -1,0 +1,21 @@
+{
+  "github_runtime": "Strategic-Minds-AI/x1-ai-hub-swarm-runtime",
+  "github_product_candidates": [
+    "Strategic-Minds-AI/X1-OPERATING-SYSTEM",
+    "Strategic-Minds-AI/X1-OPERATING-SYSTEMS"
+  ],
+  "supabase_staging": "uvdkzsbjackpjvpoxtyk",
+  "railway_preview": {
+    "project": "f442cf0a-7275-4c2b-bf73-2dda4254e002",
+    "environment": "d4cd61a5-fe51-4eba-afb7-286267861734",
+    "service": "b9c79ead-1edc-44b9-9823-98d37b20399e",
+    "note": "Environment internal name production does not imply production worker; reverify preview runtime identity."
+  },
+  "vercel_project": null,
+  "ga4_property": null,
+  "search_console_property": null,
+  "local_device": "JARVIS-COMMAND",
+  "authorized_local_root": "C:\\_Strategic_Minds_AI_OS",
+  "credentials": "NOT_INCLUDED",
+  "status": "REFERENCE_BINDINGS_REQUIRE_FRESH_RUNTIME_VERIFICATION"
+}

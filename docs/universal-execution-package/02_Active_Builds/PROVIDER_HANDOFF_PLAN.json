@@ -1,0 +1,29 @@
+{
+  "state": "PREPARED_NOT_ACTIVATED",
+  "order": [
+    "drive_documents",
+    "github_branch_source",
+    "supabase_mission_receipt",
+    "isolated_build",
+    "tests",
+    "independent_review",
+    "vercel_preview",
+    "preview_readback",
+    "receipt"
+  ],
+  "railway": "ONLY_IF_REQUIRED_EXISTING_EXECUTOR",
+  "measurement": "PREPARE_EARLY_ACTIVATE_ONLY_ON_AUTHORIZED_PUBLIC_RELEASE",
+  "cron": "REUSE_EXISTING_ONLY",
+  "provider_readback_fields": [
+    "provider",
+    "account_id",
+    "resource_id",
+    "parent_id",
+    "source_sha",
+    "artifact_hash",
+    "status",
+    "timestamp",
+    "evidence_url"
+  ],
+  "no_side_effects_from_packet_generation": true
+}

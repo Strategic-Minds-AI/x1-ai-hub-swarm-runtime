@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "X1 Project Manifest",
+  "type": "object",
+  "required": [
+    "schema",
+    "project_id",
+    "tenant_id",
+    "name",
+    "project_type",
+    "template",
+    "visual",
+    "variables",
+    "batch",
+    "accounts",
+    "mode",
+    "social_mode",
+    "approved_actions",
+    "acceptance"
+  ],
+  "properties": {
+    "schema": {
+      "const": "x1.project.v1"
+    },
+    "project_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]{1,80}$"
+    },
+    "project_type": {
+      "enum": [
+        "website",
+        "webapp",
+        "pwa",
+        "desktop",
+        "mobile",
+        "system"
+      ]
+    },
+    "mode": {
+      "const": "PREVIEW_ONLY"
+    },
+    "social_mode": {
+      "const": "DRAFT_ONLY"
+    },
+    "batch": {
+      "type": "object",
+      "required": [
+        "quantity",
+        "approved_max",
+        "concurrency",
+        "budget_usd"
+      ],
+      "properties": {
+        "quantity": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "approved_max": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "concurrency": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "budget_usd": {
+          "type": "number",
+          "minimum": 0
+        }
+      }
+    }
+  },
+  "description": "Packet compiler adds cross-field and unresolved binding checks; validation is not live provider authorization."
+}

@@ -1,0 +1,4 @@
+# Historical evidence, reverify before activation
+Runtime draft PR12 https://github.com/Strategic-Minds-AI/x1-ai-hub-swarm-runtime/pull/12 source 4b9d64feac5972672c77af8e3eac3007f25e3e8e. Independent CI https://github.com/Strategic-Minds-AI/x1-ai-hub-swarm-runtime/actions/runs/38182975928 passed 123 tests. Handler disabled and proposal-only; does not write code or deploy.
+Earlier real READ_ONLY canary work95df718a-8922-495e-94c1-e47f5c98f5a8 completed with execution911e878d-6690-46f4-a510-cdb0230b8962 and audit74eff2a2-dc5e-4034-b70b-8a68292784cc. It verifies queue acknowledgment, not autonomous coding.
+Current pipeline, Guardian release PASS, authenticated coding executor, provider credentials, sustained operation and Google account bindings must be freshly verified. This package does not activate them.
