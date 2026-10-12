@@ -12,6 +12,7 @@ import { SupabaseWorkQueue } from "./work-queue-client.js";
 import { processNextWork } from "./worker-orchestrator.js";
 import { SingleFlightGate } from "./single-flight.js";
 import {X1_PROMPT_PREVIEW_KIND,createX1PreviewHttpProvider,executeX1PromptPreview} from "./x1-prompt-preview.js";
+import {assertIndependentQaConfig,requireIndependentQaProof} from "./x1-preview-qa-handoff.js";
 
 function required(name:string):string {
   const value=process.env[name];
@@ -85,7 +86,23 @@ async function tick():Promise<void> {
           }
           const githubToken=required("X1_GITHUB_PREVIEW_TOKEN");
           const vercelToken=required("X1_VERCEL_PREVIEW_TOKEN");
-          return executeX1PromptPreview(work,createX1PreviewHttpProvider({githubToken,vercelToken}));
+          const qaConfig={
+            enabled:process.env.X1_INDEPENDENT_PREVIEW_QA_ENABLED==="true",
+            endpoint:required("X1_PREVIEW_QA_ENDPOINT"),
+            bearerToken:required("X1_PREVIEW_QA_TOKEN"),
+            validatorId:required("X1_PREVIEW_QA_VALIDATOR_ID"),
+            workerId
+          };
+          // Fail BEFORE any GitHub or Vercel mutation when independent QA
+          // cannot be safely dispatched to a different verified identity.
+          assertIndependentQaConfig(qaConfig,work);
+          const build=await executeX1PromptPreview(work,
+             createX1PreviewHttpProvider({githubToken,vercelToken}));
+          const qa=await requireIndependentQaProof(work,build,qaConfig);
+          return {kind:build.kind,status:"QA_RECORDED_PERSISTENCE_FENCED",
+            build,independent_qa:"PASS",qaReceiptId:qa.receipt_id,
+            validatorId:qa.validator_id};
+
         }
         throw new Error("NO_PREVIEW_HANDLER_FOR_MUTATION");
       },
