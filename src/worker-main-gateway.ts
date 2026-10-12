@@ -15,6 +15,8 @@ import {X1_PROMPT_PREVIEW_KIND,createX1PreviewHttpProvider,executeX1PromptPrevie
 import {assertIndependentQaConfig,requireIndependentQaProof} from "./x1-preview-qa-handoff.js";
 import {assertWleSignedAuthorizationScope,handleWleSyntheticPreview,WLE_PREVIEW_KIND}
   from "./wle-preview-adapter.js";
+import {assertWlePrivateQaConfig,requireWlePrivateQaProof}
+  from "./wle-private-qa-handoff.js";
 
 function required(name:string):string {
   const value=process.env[name];
@@ -84,14 +86,30 @@ async function tick():Promise<void> {
            work.payload?.kind===WLE_PREVIEW_KIND){
           if(environment!=="preview" ||
              process.env.WLE_PREVIEW_ADAPTER_ENABLED!=="true" ||
-             process.env.X1_DB_COMPLETION_FENCING_PASS!=="true"){
+             process.env.X1_DB_COMPLETION_FENCING_PASS!=="true" ||
+             process.env.WLE_PRIVATE_QA_FENCE_VERIFIED!=="true"){
             throw new Error("WLE_PREVIEW_ADAPTER_DISABLED_OR_FENCING_UNVERIFIED");
           }
-          return handleWleSyntheticPreview(work,{
+          // Validate a DIFFERENT independent validator identity and the
+          // existing validator's staging contract BEFORE any storage write.
+          // Private storage hash readback by this worker is not a QA PASS.
+          const wleQaConfig={
+            enabled:process.env.WLE_PRIVATE_QA_ENABLED==="true",
+            endpoint:required("WLE_PRIVATE_QA_ENDPOINT"),
+            bearerToken:required("WLE_PRIVATE_QA_TOKEN"),
+            validatorId:required("WLE_PRIVATE_QA_VALIDATOR_ID"),
+            workerId,
+          };
+          assertWlePrivateQaConfig(wleQaConfig,work);
+          const artifact=await handleWleSyntheticPreview(work,{
             environment,systemTenantId:tenantId,workerId,
             supabaseUrl:required("SUPABASE_URL"),
             serviceRoleKey:required("SUPABASE_SERVICE_ROLE_KEY")
           });
+          const qa=await requireWlePrivateQaProof(work,artifact,wleQaConfig);
+          return {kind:artifact.kind,artifact,independent_qa:"PASS",
+            qaReceiptId:qa.receipt_id,validatorId:qa.validator_id,
+            status:"QA_RECORDED_PERSISTENCE_FENCED"};
         }
         // Preserve the separately developed generic prompt-preview handler.
         // It retains its own independent QA/provider gates and credentials.

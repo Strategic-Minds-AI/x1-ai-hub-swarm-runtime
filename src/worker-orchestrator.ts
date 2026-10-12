@@ -41,6 +41,9 @@ function codeFor(error:unknown): string {
 }
 
 function nonRetryableAuthorizationError(code:string): boolean {
+  // An uncertain independent QA receipt must be manually reconciled against
+  // the original lease. Never blindly replay the private staging mutation.
+  if(code.startsWith("WLE_PRIVATE_QA_")) return true;
   return [
     "CAPABILITY_BOOTSTRAP_BLOCKED",
     "AUTHORIZATION_REQUIRED",
