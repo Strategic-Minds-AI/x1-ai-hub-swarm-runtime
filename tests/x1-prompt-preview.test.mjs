@@ -19,6 +19,9 @@ const HTML=['<!doctype html><html lang="en"><head><meta name="robots" content="n
 '<p>Validation must include meaningful browser interactions, responsive geometry, correct link behavior, and a real reachable preview. The approved external provider may create an isolated deployment only after source revision identity is independently established.</p>',
 '</section></main><footer>Strategic Minds AI · PREVIEW</footer></body></html>'].join("");
 const sha=s=>createHash("sha256").update(s).digest("hex");
+const ready=()=>({id:DEPLOY_ID,projectId:"prj_JbkX4yKWygqBFRhkHL6nbeQXM46f",
+ url:URL.replace("https://","").replace(/\/$/,""),target:null,alias:[],readyState:"READY",
+ meta:{x1Packet:WORK,x1SourceSha:COMMIT,x1HtmlHash:sha(HTML),x1Release:"PREVIEW_ONLY"}});
 function work(other={}){
  return {work_id:WORK,tenant_id:TENANT,mission_id:"mission-test",task_id:"x1.preview.build.integration-test",
  work_packet_id:"WP-X1-PREVIEW-TEST",requested_by:"test",action_class:"NON_PRODUCTION_MUTATION",
@@ -97,7 +100,7 @@ test("network provider commits exact source and deploys via existing GitHub/Verc
    if(url.endsWith("/git/commits"))return reply({sha:COMMIT});
    if(url.endsWith("/git/refs"))return reply({object:{sha:COMMIT}});
    if(url.includes("api.vercel.com/v13/deployments?"))return reply({deployment:{id:DEPLOY_ID,url:URL.replace("https://","").replace(/\/$/,""),target:null,alias:[]}});
-   if(url.includes("/v13/deployments/"+DEPLOY_ID))return reply({deployment:{readyState:"READY"}});
+   if(url.includes("/v13/deployments/"+DEPLOY_ID))return reply({deployment:ready()});
    if(url===URL)return reply(HTML,200,{"x-robots-tag":"noindex,nofollow"});
    throw Error("Unexpected URL: "+url);
   }
@@ -112,6 +115,31 @@ test("network provider commits exact source and deploys via existing GitHub/Verc
  assert.equal(Object.hasOwn(deploy.body,"alias"),false);
  assert.equal(calls.some(c=>JSON.stringify(c.body??{}).includes("refs/heads/main")),false);
  assert.equal(JSON.stringify(result).includes("test-vercel"),false);
+});
+test("READY on a different deployment, project, source or content fails before preview fetch",async()=>{
+ const pack=compileX1PreviewPack(work());
+ for(const patch of [{id:"dpl_other"},{projectId:"prj_other"},{url:"website-launch-engine-other.vercel.app"},
+  {target:"production"},{alias:["production.example"]},
+  {meta:{...ready().meta,x1Packet:"other"}},
+  {meta:{...ready().meta,x1SourceSha:BASE}},
+  {meta:{...ready().meta,x1HtmlHash:"0".repeat(64)}},
+  {meta:{...ready().meta,x1Release:"PRODUCTION"}}]){
+  let htmlFetches=0;
+  const provider=createX1PreviewHttpProvider({githubToken:"test",vercelToken:"test",
+   fetchImpl:async url=>{
+    if(url===URL){htmlFetches++;return new Response(HTML);}
+    return new Response(JSON.stringify({deployment:{...ready(),...patch}}));
+   }});
+  await assert.rejects(()=>provider.verifyDeployed(pack,{id:DEPLOY_ID,url:URL},COMMIT),
+   /X1_DEPLOYMENT_|X1_RELEASE_TARGET_DENIED/);
+  assert.equal(htmlFetches,0);
+ }
+});
+test("missing provider artifact metadata cannot verify deployment",async()=>{
+ const pack=compileX1PreviewPack(work());const live=ready();delete live.meta;
+ const provider=createX1PreviewHttpProvider({githubToken:"test",vercelToken:"test",
+  fetchImpl:async()=>new Response(JSON.stringify(live))});
+ await assert.rejects(()=>provider.verifyDeployed(pack,{id:DEPLOY_ID,url:URL},COMMIT),/ARTIFACT_MISMATCH/);
 });
 test("invalid GitHub source and missing provider keys fail closed",async()=>{
  assert.throws(()=>createX1PreviewHttpProvider({githubToken:"",vercelToken:""}),/X1_PREVIEW_PROVIDER_CREDENTIALS_REQUIRED/);
