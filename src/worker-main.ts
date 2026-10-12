@@ -9,6 +9,7 @@ import { createServer } from "node:http";
 import { ControlPlaneClient } from "./control-plane-client.js";
 import { SupabaseWorkQueue } from "./work-queue-client.js";
 import { processNextWork } from "./worker-orchestrator.js";
+import { SingleFlightGate } from "./single-flight.js";
 
 function required(name:string):string {
   const value=process.env[name];
@@ -19,8 +20,9 @@ function required(name:string):string {
 const port=Number(process.env.PORT ?? "3000");
 if(!Number.isInteger(port) || port<=0 || port>65535) throw new Error("PORT_INVALID");
 
-const workerId=process.env.X1_WORKER_ID ?? "x1-swarm-preview-1";
-const environment=(process.env.X1_RUNTIME_ENV ?? "preview") as "development"|"preview"|"production";
+// A missing runtime identity must never silently connect to Preview.
+const workerId=required("X1_WORKER_ID");
+const environment=required("X1_RUNTIME_ENV") as "development"|"preview"|"production";
 if(!["development","preview","production"].includes(environment)) throw new Error("X1_RUNTIME_ENV_INVALID");
 
 const supabaseUrl=required("SUPABASE_URL");
@@ -45,6 +47,7 @@ const controlPlane=new ControlPlaneClient({
 
 let running=false;
 let stopping=false;
+const singleFlight=new SingleFlightGate();
 let lastTick:{at:string;status:string;code?:string}={at:new Date().toISOString(),status:"BOOTING"};
 
 async function tick():Promise<void> {
@@ -78,13 +81,31 @@ async function tick():Promise<void> {
 const intervalMs=Number(process.env.X1_WORKER_POLL_MS ?? "5000");
 if(!Number.isInteger(intervalMs) || intervalMs<1000 || intervalMs>60000) throw new Error("X1_WORKER_POLL_MS_INVALID");
 
-const timer=setInterval(()=>void tick(),intervalMs);
-void tick();
+const timer=setInterval(()=>void singleFlight.run(tick),intervalMs);
+void singleFlight.run(tick);
 
 const server=createServer((req,res)=>{
+  // Railway continues using /healthz for process liveness. /readyz separately
+  // exposes queue-poll freshness without restarting a working worker on a
+  // temporary control-plane outage.
+  if(req.url==="/readyz") {
+    const ageMs=Date.now()-Date.parse(lastTick.at);
+    const recent=Number.isFinite(ageMs) && ageMs>=0 &&
+      ageMs<=Math.max(60000,intervalMs*3);
+    const ready=!stopping && !singleFlight.busy && recent &&
+      (lastTick.status==="IDLE" || lastTick.status==="COMPLETED");
+    res.statusCode=ready?200:503;
+    res.setHeader("content-type","application/json");
+    res.end(JSON.stringify({ok:ready,workerId,runtime:environment,lastTick,
+      busy:singleFlight.busy,stopping}));
+    return;
+  }
   if(req.url==="/healthz") {
-    const healthy=lastTick.status!=="FAILED";
-    res.statusCode=healthy?200:503;
+    // This endpoint is process liveness, not dependency readiness. Transient
+    // queue/authorization outages must not trigger cascading Railway restarts.
+    // /readyz separately reports dependency failures and shutdown drain state.
+    const healthy=true;
+    res.statusCode=200;
     res.setHeader("content-type","application/json");
     res.end(JSON.stringify({ok:healthy,workerId,runtime:environment,lastTick}));
     return;
@@ -100,8 +121,20 @@ function shutdown():void {
   if(stopping) return;
   stopping=true;
   clearInterval(timer);
-  server.close(()=>process.exit(0));
-  setTimeout(()=>process.exit(1),5000);
+  void (async()=>{
+    const drained=await singleFlight.stopAndDrain(25000);
+    if(!drained) {
+      console.error(JSON.stringify({event:"WORKER_SHUTDOWN_DRAIN_TIMEOUT",
+        workerId,runtime:environment}));
+    }
+    // Never acknowledge unfinished work on forced shutdown. Its original
+    // lease and durable idempotency record remain for independent recovery.
+    const hardStop=setTimeout(()=>process.exit(1),3000);
+    server.close(()=>{
+      clearTimeout(hardStop);
+      process.exit(drained?0:1);
+    });
+  })().catch(()=>process.exit(1));
 }
 
 process.on("SIGTERM",shutdown);

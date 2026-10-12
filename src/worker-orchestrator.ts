@@ -1,9 +1,16 @@
+import { createHash } from "node:crypto";
 import { executeAuthorizedTask } from "./execute-authorized-task.js";
 import { SupabaseExecutionLedger, type SupabaseExecutionLedgerConfig } from "./supabase-execution-ledger.js";
 import { ControlPlaneClient } from "./control-plane-client.js";
 import { SupabaseWorkQueue } from "./work-queue-client.js";
 import type { ExecutionLedger } from "./execution-ledger.js";
 import type { LeasedWork } from "./types.js";
+
+export function executionAttemptKey(baseKey:string,attempt:number):string {
+  if(!/^[0-9a-f]{64}$/.test(baseKey) || !Number.isInteger(attempt) ||
+     attempt<1 || attempt>10) throw new Error("EXECUTION_ATTEMPT_KEY_INVALID");
+  return createHash("sha256").update(baseKey+":"+String(attempt)).digest("hex");
+}
 
 export type WorkerTickStatus = "IDLE" | "COMPLETED" | "BLOCKED" | "FAILED";
 
@@ -37,10 +44,16 @@ function nonRetryableAuthorizationError(code:string): boolean {
     "CAPABILITY_BOOTSTRAP_BLOCKED",
     "AUTHORIZATION_REQUIRED",
     "AUTHORIZATION_CONTEXT_MISMATCH",
+    "AUTHORIZATION_ACTION_MISMATCH",
+    "AUTHORIZATION_TIME_WINDOW_INVALID",
     "AUTHORIZATION_EXPIRED",
     "AUTHORIZATION_SIGNATURE_INVALID",
     "AUTHORIZATION_SIGNATURE_ALGORITHM_INVALID",
     "AUTHORIZATION_RECEIPT_REQUIRED",
+    "CONTROL_PLANE_AUTHORIZATION_FAILED",
+    "CONTROL_PLANE_INTERNAL_TOKEN_REQUIRED",
+    "CONTROL_PLANE_URL_REQUIRED",
+    "CONTROL_PLANE_FETCH_UNAVAILABLE",
   ].includes(code);
 }
 
@@ -62,8 +75,10 @@ export async function processNextWork<T=unknown>(
     });
   } catch(error) {
     const code=codeFor(error);
-    await config.queue.finishWork(work,"FAILED",code);
-    return {status:"FAILED",workId:work.work_id,code};
+    // Credential/auth failures are not transient worker failures. Never auto-retry them.
+    const status=nonRetryableAuthorizationError(code) ? "BLOCKED" : "FAILED";
+    await config.queue.finishWork(work,status,code);
+    return {status,workId:work.work_id,code};
   }
 
   if(!authorization.allowed) {
@@ -78,26 +93,45 @@ export async function processNextWork<T=unknown>(
     internalServiceToken:config.internalServiceToken,
     tenantId:work.tenant_id,
     agentId:config.workerId,
-    idempotencyKey:work.idempotency_key,
+    // One stable key per task attempt. A failed attempt must not poison the
+    // next lease via x1_execution_ledger_idempotency_key_key.
+    idempotencyKey:executionAttemptKey(work.idempotency_key,work.attempt),
     attempt:work.attempt,
     completionReceiptId:`worker:${work.work_id}:${work.attempt}`,
   } satisfies SupabaseExecutionLedgerConfig);
 
+  let output:T;
   try {
-    const output=await executeAuthorizedTask<T>({
+    output=await executeAuthorizedTask<T>({
       authorization,
-      context:{taskId:work.task_id,agentId:config.workerId,tenantId:work.tenant_id},
+      context:{taskId:work.task_id,agentId:config.workerId,tenantId:work.tenant_id,
+        requestedAction:work.action_class},
       lease:work.lease,
       signingKey:config.bootstrapSigningKey,
       ledger,
       handler:()=>config.handler(work) as Promise<T> | T,
     });
-    await config.queue.finishWork(work,"COMPLETED");
-    return {status:"COMPLETED",workId:work.work_id,output};
   } catch(error) {
     const code=codeFor(error);
-    const status=nonRetryableAuthorizationError(code) ? "BLOCKED" : "FAILED";
+    // Unconfirmed durable receipts must be reconciled against the ledger and
+    // original lease. Marking these FAILED could trigger duplicate side effects.
+    if(code==="EXECUTION_CLAIM_UNCONFIRMED" ||
+       code==="EXECUTION_COMPLETION_UNCONFIRMED" ||
+       code==="EXECUTION_FAILURE_RECEIPT_UNCONFIRMED") {
+      return {status:"FAILED",workId:work.work_id,code};
+    }
+    const status=code==="DUPLICATE_EXECUTION" ||
+      nonRetryableAuthorizationError(code) ? "BLOCKED" : "FAILED";
     await config.queue.finishWork(work,status,code);
     return {status,workId:work.work_id,code};
   }
+
+  // Ledger completion succeeded. A queue acknowledgement failure is NOT an
+  // execution failure. Do not send a second, contradictory FAILED transition.
+  try {
+    await config.queue.finishWork(work,"COMPLETED");
+  } catch {
+    return {status:"FAILED",workId:work.work_id,code:"QUEUE_COMPLETION_UNCONFIRMED"};
+  }
+  return {status:"COMPLETED",workId:work.work_id,output};
 }
