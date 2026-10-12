@@ -13,6 +13,8 @@ import { processNextWork } from "./worker-orchestrator.js";
 import { SingleFlightGate } from "./single-flight.js";
 import {X1_PROMPT_PREVIEW_KIND,createX1PreviewHttpProvider,executeX1PromptPreview} from "./x1-prompt-preview.js";
 import {assertIndependentQaConfig,requireIndependentQaProof} from "./x1-preview-qa-handoff.js";
+import {assertWleSignedAuthorizationScope,handleWleSyntheticPreview,WLE_PREVIEW_KIND}
+  from "./wle-preview-adapter.js";
 
 function required(name:string):string {
   const value=process.env[name];
@@ -66,6 +68,7 @@ async function tick():Promise<void> {
       gatewayUrl:dbGatewayUrl,
       internalServiceToken:internalToken,
       workerId,
+      authorizationGuard:assertWleSignedAuthorizationScope,
       handler:async(work)=>{
         if(work.action_class==="READ_ONLY")return {
           acknowledged:true,
@@ -74,9 +77,24 @@ async function tick():Promise<void> {
           taskId:work.task_id,
           sourceSha,
         };
-        // Nonproduction mutation remains OFF until the independently reviewed
-        // database completion lease/receipt fences and scoped provider bindings
-        // have been verified. Do not replace or create another worker.
+        // WLE-specific private synthetic preview, on the SAME authorized
+        // singleton worker, using X1's signed capability and completion fence.
+        // This is OFF unless separately approved on existing preview runtime.
+        if(work.action_class==="NON_PRODUCTION_MUTATION" &&
+           work.payload?.kind===WLE_PREVIEW_KIND){
+          if(environment!=="preview" ||
+             process.env.WLE_PREVIEW_ADAPTER_ENABLED!=="true" ||
+             process.env.X1_DB_COMPLETION_FENCING_PASS!=="true"){
+            throw new Error("WLE_PREVIEW_ADAPTER_DISABLED_OR_FENCING_UNVERIFIED");
+          }
+          return handleWleSyntheticPreview(work,{
+            environment,systemTenantId:tenantId,workerId,
+            supabaseUrl:required("SUPABASE_URL"),
+            serviceRoleKey:required("SUPABASE_SERVICE_ROLE_KEY")
+          });
+        }
+        // Preserve the separately developed generic prompt-preview handler.
+        // It retains its own independent QA/provider gates and credentials.
         if(work.action_class==="NON_PRODUCTION_MUTATION" &&
            work.payload?.kind===X1_PROMPT_PREVIEW_KIND){
           if(environment!=="preview" ||
