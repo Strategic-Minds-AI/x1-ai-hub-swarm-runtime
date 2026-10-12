@@ -1,0 +1,35 @@
+{
+  "required": [
+    "mission_id",
+    "tenant_id",
+    "task_id",
+    "actor_id",
+    "source_sha",
+    "manifest_hash",
+    "artifact_hash",
+    "lease_id",
+    "execution_id",
+    "idempotency_key",
+    "outcome",
+    "tests",
+    "independent_validation",
+    "approvals",
+    "cost",
+    "rollback",
+    "next_action"
+  ],
+  "outcomes": [
+    "PASS",
+    "FAIL",
+    "BLOCKED",
+    "UNKNOWN",
+    "IN_PROGRESS"
+  ],
+  "test_binding": [
+    "name",
+    "artifact_hash",
+    "passed",
+    "evidence_uri"
+  ],
+  "installation_is_not_deployment": true
+}

@@ -1,0 +1,74 @@
+{
+  "schema": "x1.project.v1",
+  "project_id": "x1-example-preview",
+  "tenant_id": "synthetic-tenant",
+  "name": "Synthetic packet example",
+  "project_type": "website",
+  "template": {
+    "repo": null,
+    "sha": null,
+    "path": null,
+    "key": null
+  },
+  "visual": {
+    "reference": null,
+    "sha256": null,
+    "parity_target": 0.99,
+    "viewports": [
+      [
+        1440,
+        900
+      ],
+      [
+        768,
+        1024
+      ],
+      [
+        390,
+        844
+      ]
+    ]
+  },
+  "variables": {
+    "industry": null,
+    "subindustry": null,
+    "location": null,
+    "locale": "en-US",
+    "style": null,
+    "colors": null,
+    "logo": null,
+    "images": [],
+    "name": null,
+    "phone": null,
+    "address": null,
+    "url": null,
+    "content": null
+  },
+  "batch": {
+    "quantity": 0,
+    "approved_max": 0,
+    "concurrency": 1,
+    "budget_usd": 0
+  },
+  "accounts": {
+    "drive": null,
+    "supabase": null,
+    "vercel": null,
+    "railway": null,
+    "ga4": null,
+    "search_console": null
+  },
+  "mode": "PREVIEW_ONLY",
+  "social_mode": "DRAFT_ONLY",
+  "approved_actions": [],
+  "acceptance": [
+    "source_lock",
+    "build",
+    "unit",
+    "e2e",
+    "visual",
+    "independent_review",
+    "receipt",
+    "rollback"
+  ]
+}

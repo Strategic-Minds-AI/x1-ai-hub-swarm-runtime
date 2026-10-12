@@ -1,0 +1,102 @@
+[
+  {
+    "requirement": "FRONTEND",
+    "document": "01_Builder_Docs/FRONTEND.md",
+    "status": "CONTRACT_PREPARED_EXECUTION_UNKNOWN"
+  },
+  {
+    "requirement": "BACKEND",
+    "document": "01_Builder_Docs/BACKEND.md",
+    "status": "CONTRACT_PREPARED_EXECUTION_UNKNOWN"
+  },
+  {
+    "requirement": "WORKFLOW",
+    "document": "01_Builder_Docs/WORKFLOW.md",
+    "status": "CONTRACT_PREPARED_EXECUTION_UNKNOWN"
+  },
+  {
+    "requirement": "VERCEL_WORKFLOW",
+    "document": "01_Builder_Docs/VERCEL_WORKFLOW.md",
+    "status": "CONTRACT_PREPARED_EXECUTION_UNKNOWN"
+  },
+  {
+    "requirement": "FIVE_MINUTE_CRON",
+    "document": "01_Builder_Docs/FIVE_MINUTE_CRON.md",
+    "status": "CONTRACT_PREPARED_EXECUTION_UNKNOWN"
+  },
+  {
+    "requirement": "AI_GATEWAY",
+    "document": "01_Builder_Docs/AI_GATEWAY.md",
+    "status": "CONTRACT_PREPARED_EXECUTION_UNKNOWN"
+  },
+  {
+    "requirement": "VERCEL_AGENTS",
+    "document": "01_Builder_Docs/VERCEL_AGENTS.md",
+    "status": "CONTRACT_PREPARED_EXECUTION_UNKNOWN"
+  },
+  {
+    "requirement": "CODEX",
+    "document": "01_Builder_Docs/CODEX.md",
+    "status": "CONTRACT_PREPARED_EXECUTION_UNKNOWN"
+  },
+  {
+    "requirement": "N8N",
+    "document": "01_Builder_Docs/N8N.md",
+    "status": "CONTRACT_PREPARED_EXECUTION_UNKNOWN"
+  },
+  {
+    "requirement": "SUPABASE",
+    "document": "01_Builder_Docs/SUPABASE.md",
+    "status": "CONTRACT_PREPARED_EXECUTION_UNKNOWN"
+  },
+  {
+    "requirement": "GOOGLE_DRIVE",
+    "document": "01_Builder_Docs/GOOGLE_DRIVE.md",
+    "status": "CONTRACT_PREPARED_EXECUTION_UNKNOWN"
+  },
+  {
+    "requirement": "GOOGLE_CHAT",
+    "document": "01_Builder_Docs/GOOGLE_CHAT.md",
+    "status": "CONTRACT_PREPARED_EXECUTION_UNKNOWN"
+  },
+  {
+    "requirement": "SEO_AEO_GEO",
+    "document": "01_Builder_Docs/SEO_AEO_GEO.md",
+    "status": "CONTRACT_PREPARED_EXECUTION_UNKNOWN"
+  },
+  {
+    "requirement": "ANALYTICS_CONSOLE",
+    "document": "01_Builder_Docs/ANALYTICS_CONSOLE.md",
+    "status": "CONTRACT_PREPARED_EXECUTION_UNKNOWN"
+  },
+  {
+    "requirement": "SECURITY_ACCESSIBILITY",
+    "document": "01_Builder_Docs/SECURITY_ACCESSIBILITY.md",
+    "status": "CONTRACT_PREPARED_EXECUTION_UNKNOWN"
+  },
+  {
+    "requirement": "PWA_DESKTOP_MOBILE",
+    "document": "01_Builder_Docs/PWA_DESKTOP_MOBILE.md",
+    "status": "CONTRACT_PREPARED_EXECUTION_UNKNOWN"
+  },
+  {
+    "requirement": "SMOKE_E2E_VISUAL",
+    "document": "01_Builder_Docs/SMOKE_E2E_VISUAL.md",
+    "status": "CONTRACT_PREPARED_EXECUTION_UNKNOWN"
+  },
+  {
+    "requirement": "RELEASE_ROLLBACK",
+    "document": "01_Builder_Docs/RELEASE_ROLLBACK.md",
+    "status": "CONTRACT_PREPARED_EXECUTION_UNKNOWN"
+  },
+  {
+    "requirement": "ENV_CHECKLIST",
+    "document": "01_Builder_Docs/ENV_CHECKLIST.md",
+    "status": "CONTRACT_PREPARED_EXECUTION_UNKNOWN"
+  },
+  {
+    "requirement": "CLIENT_HANDOFF",
+    "document": "01_Builder_Docs/CLIENT_HANDOFF.md",
+    "status": "CONTRACT_PREPARED_EXECUTION_UNKNOWN"
+  }
+]

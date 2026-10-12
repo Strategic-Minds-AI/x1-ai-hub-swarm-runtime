@@ -1,0 +1,17 @@
+{
+  "order": [
+    "current explicit operator scope",
+    "approved immutable project/design manifest",
+    "fresh canonical repository and provider evidence",
+    "current authoritative project documents",
+    "historical packets/context"
+  ],
+  "name": "X1 Operating System",
+  "historical_name": "Digital Dominance",
+  "canonical_product_repo_candidates": [
+    "Strategic-Minds-AI/X1-OPERATING-SYSTEM",
+    "Strategic-Minds-AI/X1-OPERATING-SYSTEMS"
+  ],
+  "observed_remote_HEAD": "3c2bf4b275bd50b70bf29f248f10ccd5762c229f",
+  "note": "Both URLs returned same HEAD; verify canonical redirect/API identity before modifying product repo. Runtime repository remains separately owned."
+}

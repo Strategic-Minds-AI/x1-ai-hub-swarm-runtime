@@ -1,0 +1,21 @@
+{
+  "server_only_secret_names": [
+    "X1_INTERNAL_SERVICE_TOKEN",
+    "SUPABASE_SERVICE_ROLE_KEY",
+    "AI_GATEWAY_API_KEY",
+    "LOCAL_DOCKER_TOKEN"
+  ],
+  "server_context_names": [
+    "X1_RUNTIME_ENV",
+    "X1_WORKER_ID",
+    "X1_SYSTEM_TENANT_ID",
+    "X1_CONTROL_PLANE_URL",
+    "X1_DB_GATEWAY_URL",
+    "LOCAL_DOCKER_URL"
+  ],
+  "public_or_identifier_names": [
+    "GA4_MEASUREMENT_ID",
+    "SEARCH_CONSOLE_SITE_URL"
+  ],
+  "note": "Examples only. Verify existing adapter names; never rename or rebind current secrets automatically."
+}

@@ -1,0 +1,80 @@
+[
+  {
+    "title": "Search Essentials",
+    "url": "https://developers.google.com/search/docs/essentials",
+    "verified_on": "2026-10-12",
+    "finding": "Eligibility is not a guarantee of crawl/index/serving."
+  },
+  {
+    "title": "Spam policies",
+    "url": "https://developers.google.com/search/docs/essentials/spam-policies",
+    "verified_on": "2026-10-12",
+    "finding": "Prohibit doorway, scaled low-value content, link spam and other manipulation."
+  },
+  {
+    "title": "Helpful content",
+    "url": "https://developers.google.com/search/docs/fundamentals/creating-helpful-content",
+    "verified_on": "2026-10-12",
+    "finding": "People-first useful, reliable content."
+  },
+  {
+    "title": "Generative AI content",
+    "url": "https://developers.google.com/search/docs/fundamentals/using-gen-ai-content",
+    "verified_on": "2026-10-12",
+    "finding": "AI creation does not waive quality/spam rules."
+  },
+  {
+    "title": "AI features",
+    "url": "https://developers.google.com/search/docs/appearance/ai-features",
+    "verified_on": "2026-10-12",
+    "finding": "No extra technical requirement, special AI file or schema."
+  },
+  {
+    "title": "Sitemap",
+    "url": "https://developers.google.com/search/docs/crawling-indexing/sitemaps/build-sitemap",
+    "verified_on": "2026-10-12",
+    "finding": "Absolute URLs, canonical selection, 50,000 URL/50MB limits."
+  },
+  {
+    "title": "Search Console sitemap submit",
+    "url": "https://developers.google.com/webmaster-tools/v1/sitemaps/submit",
+    "verified_on": "2026-10-12",
+    "finding": "Authorized siteUrl/feedpath submission; not indexing proof."
+  },
+  {
+    "title": "Indexing API",
+    "url": "https://developers.google.com/search/apis/indexing-api/v3/quickstart",
+    "verified_on": "2026-10-12",
+    "finding": "Restricted page types only."
+  },
+  {
+    "title": "Structured data",
+    "url": "https://developers.google.com/search/docs/appearance/structured-data/sd-policies",
+    "verified_on": "2026-10-12",
+    "finding": "Visible truthful content and feature requirements."
+  },
+  {
+    "title": "International",
+    "url": "https://developers.google.com/search/docs/specialty/international/localized-versions",
+    "verified_on": "2026-10-12",
+    "finding": "Separate language URLs and reciprocal annotations."
+  },
+  {
+    "title": "GA4",
+    "url": "https://developers.google.com/analytics/devguides/collection/ga4",
+    "verified_on": "2026-10-12",
+    "finding": "Measurement integration; separate configuration permissions."
+  },
+  {
+    "title": "Consent",
+    "url": "https://developers.google.com/tag-platform/security/guides/consent",
+    "verified_on": "2026-10-12",
+    "finding": "Technical consent signals do not replace jurisdictional review."
+  },
+  {
+    "title": "Robots metadata",
+    "url": "https://developers.google.com/search/docs/crawling-indexing/special-tags",
+    "verified_on": "2026-10-12",
+    "finding": "Apply index/snippet controls correctly."
+  }
+]

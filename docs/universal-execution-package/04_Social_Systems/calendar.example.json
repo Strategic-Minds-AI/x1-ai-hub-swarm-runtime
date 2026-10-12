@@ -1,0 +1,19 @@
+{
+  "mode": "DRAFT_ONLY",
+  "timezone": "America/New_York",
+  "campaign_id": null,
+  "approval_receipt": null,
+  "channels": [],
+  "items": [],
+  "schema_fields": [
+    "tenant_id",
+    "channel_account_id",
+    "content_hash",
+    "media_hashes",
+    "scheduled_at_utc",
+    "utm",
+    "idempotency_key",
+    "provider_post_id",
+    "delivery_receipt"
+  ]
+}

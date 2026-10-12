@@ -1,0 +1,15 @@
+{
+  "policy": "Reuse only owned/licensed approved assets; resolve byte hash before build. No invented imagery.",
+  "records": [
+    {
+      "location": "C:\\_Strategic_Minds_AI_OS\\52_UNIVERSAL GENERATOR\\X1 Universal Generator_ Global Tech Command Center.png",
+      "status": "FILE_OBSERVED_APPROVAL_AND_HASH_UNRESOLVED"
+    },
+    {
+      "location": "C:\\_Strategic_Minds_AI_OS\\26_DIGITAL_DOMINANCE\\DIGITAL ASSETS\\EDEN SKYE.avif",
+      "status": "FILE_OBSERVED_APPROVAL_AND_HASH_UNRESOLVED"
+    }
+  ],
+  "visual_package_library_id": "libfile_e12508349b308191abee6b7638856f32",
+  "visual_package_status": "CONTEXT_POINTER_NOT_READ_OR_BUNDLED"
+}

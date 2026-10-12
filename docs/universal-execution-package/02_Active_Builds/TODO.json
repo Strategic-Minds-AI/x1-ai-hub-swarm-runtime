@@ -1,0 +1,27 @@
+{
+  "phase": "DOCS",
+  "completed": [
+    "Google primary research",
+    "Local directory and instruction discovery",
+    "Existing draft packet review",
+    "Operating prompt revision"
+  ],
+  "remaining": [
+    {
+      "task": "Bind real approved template/assets",
+      "status": "UNKNOWN"
+    },
+    {
+      "task": "Bind provider/account executor and independent QA",
+      "status": "BLOCKED"
+    },
+    {
+      "task": "Execute actual code-to-Preview and recovery tests",
+      "status": "UNKNOWN"
+    },
+    {
+      "task": "Prove public release/index eligibility/measurement/social publishing",
+      "status": "APPROVAL_SCOPED"
+    }
+  ]
+}
