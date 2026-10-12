@@ -10,7 +10,7 @@ declare module "node:crypto" {
   export function timingSafeEqual(a: Uint8Array, b: Uint8Array): boolean;
 }
 declare module "node:http" {
-  export function createServer(handler:(req:{url?:string;method?:string;headers:Record<string,string|string[]|undefined>},res:{
+  export function createServer(handler:(req:{url?:string;method?:string;headers:Record<string,string|undefined>},res:{
     statusCode:number;
     setHeader(name:string,value:string):void;
     end(body?:string):void;
