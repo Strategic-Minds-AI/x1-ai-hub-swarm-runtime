@@ -18,6 +18,9 @@ import {assertWleSignedAuthorizationScope,handleWleSyntheticPreview,WLE_PREVIEW_
 import {assertWlePrivateQaConfig,requireWlePrivateQaProof}
   from "./wle-private-qa-handoff.js";
 
+import {assertDdAuthorization, DD_PREVIEW_KIND} from "./digital-dominance/preview-adapter.mjs";
+import {runDdWorkerPreview} from "./dd-worker-preview.js";
+
 function required(name:string):string {
   const value=process.env[name];
   if(!value) throw new Error(`CONFIG_REQUIRED:${name}`);
@@ -70,7 +73,10 @@ async function tick():Promise<void> {
       gatewayUrl:dbGatewayUrl,
       internalServiceToken:internalToken,
       workerId,
-      authorizationGuard:assertWleSignedAuthorizationScope,
+      authorizationGuard:(work,authorization)=>{
+        assertWleSignedAuthorizationScope(work,authorization);
+        assertDdAuthorization(work,authorization);
+      },
       handler:async(work)=>{
         if(work.action_class==="READ_ONLY")return {
           acknowledged:true,
@@ -79,6 +85,9 @@ async function tick():Promise<void> {
           taskId:work.task_id,
           sourceSha,
         };
+        if(work.payload?.kind===DD_PREVIEW_KIND){
+          return runDdWorkerPreview(work,{environment,tenantId,workerId,env:process.env});
+        }
         // WLE-specific private synthetic preview, on the SAME authorized
         // singleton worker, using X1's signed capability and completion fence.
         // This is OFF unless separately approved on existing preview runtime.
