@@ -11,7 +11,7 @@ export const X1_GPT_DRIVE_CAPABILITY = "artifact-vault:gpt-downloads-create-only
 export const X1_GPT_DRIVE_DESTINATION = "gpt-downloads-approved";
 const SHA256 = /^[a-f0-9]{64}$/;
 const IDENTIFIER = /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,119}$/;
-const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
+const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
 const FIELDS = new Set([
   "kind", "artifact_id", "project_id", "run_id", "producer_id", "filename",
   "mime_type", "byte_size", "sha256", "source_ref", "classification",
