@@ -8,5 +8,5 @@ UPDATE private.x1_worker_registry
      updated_at=pg_catalog.clock_timestamp()
  WHERE worker_id='x1-swarm-preview-1'
    AND environment='preview' AND execution_plane='railway'
-   AND allowed_action_classes=ARRAY['READ_ONLY','NON_PRODUCTION_MUTATION']::text[];
+   AND allowed_action_classes=ARRAY['READ_ONLY','PREVIEW_WRITE']::text[];
 COMMIT;
