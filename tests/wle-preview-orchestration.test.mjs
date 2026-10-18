@@ -27,7 +27,7 @@ function makeWork(){
   return {
     work_id:WORK_ID,tenant_id:TENANT,work_packet_id:"WLE-PREVIEW-STAGING-E2E-001",
     task_id:TASK_ID,requested_by:"staging-qa",
-    action_class:"NON_PRODUCTION_MUTATION",
+    action_class:"PREVIEW_WRITE",
     required_capabilities:[{id:CAP,mechanism:"policy"}],
     payload:{
       kind:WLE_PREVIEW_KIND,template_id:"roofing",market:"Pompano Beach, FL",
@@ -88,7 +88,7 @@ function setup({authOptions={},storageMode="success"}={}){
     },
     controlPlane:{requestMandatoryAuthorization:async(request)=>{
       signedCalls++;
-      assert.equal(request.requestedAction,"NON_PRODUCTION_MUTATION");
+      assert.equal(request.requestedAction,"PREVIEW_WRITE");
       assert.deepEqual(request.requiredCapabilities,work.required_capabilities);
       return signedAuthorization(work,authOptions);
     }},
