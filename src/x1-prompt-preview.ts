@@ -33,7 +33,7 @@ export interface PreviewPack {
  vercelFiles:{file:string;data:string;encoding:"utf-8"}[];
 }
 export function compileX1PreviewPack(work:LeasedWork):PreviewPack {
- gate(work.action_class==="NON_PRODUCTION_MUTATION","X1_NONPRODUCTION_ACTION_REQUIRED");
+ gate(work.action_class==="PREVIEW_WRITE","X1_PREVIEW_WRITE_ACTION_REQUIRED");
  gate(UUID.test(work.tenant_id)&&UUID.test(work.work_id),"X1_IDENTITY_INVALID");
  gate(SHA.test(work.source_sha??""),"X1_BASE_SOURCE_SHA_REQUIRED");
  gate(/^x1\.preview\.build\.[a-z0-9-]{6,72}$/.test(work.task_id),"X1_TASK_NOT_ALLOWED");
