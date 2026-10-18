@@ -53,11 +53,11 @@ BEGIN
   -- Never let existing unreviewed mutation packets execute upon cutover.
   IF EXISTS (SELECT 1 FROM public.x1_work_queue q
       WHERE q.tenant_id=v_worker.tenant_id AND q.status='PENDING'
-        AND q.action_class='NON_PRODUCTION_MUTATION')
+        AND q.action_class='PREVIEW_WRITE')
   THEN RAISE EXCEPTION 'X1_PENDING_MUTATION_REVIEW_REQUIRED'; END IF;
 
   UPDATE private.x1_worker_registry
-   SET allowed_action_classes=ARRAY['READ_ONLY','NON_PRODUCTION_MUTATION']::text[],
+   SET allowed_action_classes=ARRAY['READ_ONLY','PREVIEW_WRITE']::text[],
        updated_at=pg_catalog.clock_timestamp()
    WHERE worker_id=v_worker.worker_id AND tenant_id=v_worker.tenant_id
      AND environment='preview' AND execution_plane='railway'
