@@ -28,7 +28,7 @@ test("generic prompt-preview mutation keeps its original independent QA/provider
 });
 test("WLE requirement is a policy-scoped gate, not a generic mutation permission",()=>{
   assert.equal(WLE_PREVIEW_KIND,"WLE_SYNTHETIC_PREVIEW_BUILD_V1");
-  const work={payload:{kind:WLE_PREVIEW_KIND},action_class:"NON_PRODUCTION_MUTATION",
+  const work={payload:{kind:WLE_PREVIEW_KIND},action_class:"PREVIEW_WRITE",
     required_capabilities:[{id:"wle-synthetic-preview-only",mechanism:"policy"}]};
   assert.throws(()=>assertWleSignedAuthorizationScope(work,{
     capabilities_required:["connector:supabase"],capabilities_resolved:["connector:supabase"],
