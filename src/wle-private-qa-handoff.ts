@@ -44,7 +44,7 @@ export interface WlePrivateQaProof {
 
 export function assertWlePrivateQaConfig(config:WlePrivateQaConfig,work:LeasedWork):void {
   if(config.enabled!==true) throw new Error("WLE_PRIVATE_QA_DISABLED");
-  if(work.action_class!=="NON_PRODUCTION_MUTATION" ||
+  if(work.action_class!=="PREVIEW_WRITE" ||
      work.payload?.kind!==WLE_PREVIEW_KIND ||
      work.source_sha!==WLE_APPROVED_SOURCE_SHA)
     throw new Error("WLE_PRIVATE_QA_WORK_NOT_APPROVED");
