@@ -82,7 +82,7 @@ async function tick():Promise<void> {
         // WLE-specific private synthetic preview, on the SAME authorized
         // singleton worker, using X1's signed capability and completion fence.
         // This is OFF unless separately approved on existing preview runtime.
-        if(work.action_class==="NON_PRODUCTION_MUTATION" &&
+        if(work.action_class==="PREVIEW_WRITE" &&
            work.payload?.kind===WLE_PREVIEW_KIND){
           if(environment!=="preview" ||
              process.env.WLE_PREVIEW_ADAPTER_ENABLED!=="true" ||
@@ -113,7 +113,7 @@ async function tick():Promise<void> {
         }
         // Preserve the separately developed generic prompt-preview handler.
         // It retains its own independent QA/provider gates and credentials.
-        if(work.action_class==="NON_PRODUCTION_MUTATION" &&
+        if(work.action_class==="PREVIEW_WRITE" &&
            work.payload?.kind===X1_PROMPT_PREVIEW_KIND){
           if(environment!=="preview" ||
              process.env.X1_PROMPT_PREVIEW_ENABLED!=="true" ||
