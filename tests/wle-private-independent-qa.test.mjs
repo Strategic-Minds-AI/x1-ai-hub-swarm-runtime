@@ -15,7 +15,7 @@ const WORKER="x1-swarm-preview-1",GUARDIAN="x1-independent-private-artifact-vali
 const PATH="wle-preview/"+T+"/"+W+"/index.html";
 const hash="a".repeat(64),templateHash="b".repeat(64);
 const work=()=>({
-  work_id:W,tenant_id:T,task_id:TASK,action_class:"NON_PRODUCTION_MUTATION",
+  work_id:W,tenant_id:T,task_id:TASK,action_class:"PREVIEW_WRITE",
   payload:{kind:WLE_PREVIEW_KIND},source_sha:WLE_APPROVED_SOURCE_SHA,
   lease:{leaseId:LEASE,taskId:TASK,holderAgentId:WORKER,
     acquiredAt:new Date(Date.now()-1000).toISOString(),
