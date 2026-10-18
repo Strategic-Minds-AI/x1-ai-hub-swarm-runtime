@@ -19,7 +19,7 @@ function makeWork(patch={}) {
     work_id:workId, tenant_id:tenantId,
     work_packet_id:"WLE-PREVIEW-STAGING-TEST-001",
     task_id:"wle.preview.synthetic.roofing-canary",
-    requested_by:"wle-test-operator",action_class:"NON_PRODUCTION_MUTATION",
+    requested_by:"wle-test-operator",action_class:"PREVIEW_WRITE",
     source_sha:WLE_APPROVED_SOURCE_SHA,
     required_capabilities:[{id:"wle-synthetic-preview-only",mechanism:"policy"}],
     approval_reference:"WLE-STAGING-SYNTHETIC-TEST-001",
@@ -126,7 +126,7 @@ test("existing object hash mismatch blocks acknowledgement",async()=>{
 });
 test("no network operation occurs for protected or invalid work",async(t)=>{
   const cases=[
-    ["production action",{action_class:"PRODUCTION_RELEASE"},{},"WLE_ACTION_CLASS_DENIED"],
+    ["production action",{action_class:"PROTECTED"},{},"WLE_ACTION_CLASS_DENIED"],
     ["read only misclassified",{action_class:"READ_ONLY"},{},"WLE_ACTION_CLASS_DENIED"],
     ["unexpected task id",{task_id:"x1.delete.database",lease:{taskId:"x1.delete.database"}},{},"WLE_TASK_NOT_ALLOWLISTED"],
     ["cross tenant",{tenant_id:"aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee"},{},"WLE_CROSS_TENANT_DENIED"],
