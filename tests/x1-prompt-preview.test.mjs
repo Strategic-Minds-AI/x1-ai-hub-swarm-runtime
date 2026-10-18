@@ -24,7 +24,7 @@ const ready=()=>({id:DEPLOY_ID,projectId:"prj_JbkX4yKWygqBFRhkHL6nbeQXM46f",
  meta:{x1Packet:WORK,x1SourceSha:COMMIT,x1HtmlHash:sha(HTML),x1Release:"PREVIEW_ONLY"}});
 function work(other={}){
  return {work_id:WORK,tenant_id:TENANT,mission_id:"mission-test",task_id:"x1.preview.build.integration-test",
- work_packet_id:"WP-X1-PREVIEW-TEST",requested_by:"test",action_class:"NON_PRODUCTION_MUTATION",
+ work_packet_id:"WP-X1-PREVIEW-TEST",requested_by:"test",action_class:"PREVIEW_WRITE",
  required_capabilities:[],source_sha:BASE,idempotency_key:"a".repeat(64),attempt:1,
  lease:{holderAgentId:"worker-1",taskId:"x1.preview.build.integration-test",
  leaseId:"lease-test-1",acquiredAt:new Date(Date.now()-5000).toISOString(),expiresAt:new Date(Date.now()+250000).toISOString()},
@@ -41,7 +41,7 @@ test("valid pack contains immutable code and only Vercel preview files",()=>{
  assert.match(p.vercelFiles[1].data,/noindex/);
 });
 test("invalid action, identity, lease and task fail closed",()=>{
- for(const k of [{action_class:"READ_ONLY"},{action_class:"PRODUCTION_RELEASE"},
+ for(const k of [{action_class:"READ_ONLY"},{action_class:"PROTECTED"},
   {tenant_id:"not-uuid"},{task_id:"x1.prod.build"},
   {lease:{holderAgentId:"worker",taskId:"not-same"}}]){
   assert.throws(()=>compileX1PreviewPack(work(k)));
