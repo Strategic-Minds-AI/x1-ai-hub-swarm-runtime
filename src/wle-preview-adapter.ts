@@ -57,7 +57,7 @@ function sha256(text: string): string {
   return createHash("sha256").update(text).digest("hex");
 }
 function payloadValid(work: LeasedWork): void {
-  failUnless(work.action_class === "NON_PRODUCTION_MUTATION", "WLE_ACTION_CLASS_DENIED");
+  failUnless(work.action_class === "PREVIEW_WRITE", "WLE_ACTION_CLASS_DENIED");
   failUnless(UUID.test(work.tenant_id) && UUID.test(work.work_id), "WLE_IDENTITY_INVALID");
   failUnless(/^wle\.preview\.synthetic\.[a-z0-9-]{1,60}$/.test(work.task_id), "WLE_TASK_NOT_ALLOWLISTED");
   failUnless(/^WLE-PREVIEW-STAGING-[A-Z0-9-]{1,100}$/.test(work.work_packet_id), "WLE_PACKET_NOT_ALLOWLISTED");
@@ -98,7 +98,7 @@ export function assertWleSignedAuthorizationScope(
 ): void {
   if (work.payload?.kind !== WLE_PREVIEW_KIND) return;
   const capability = "wle-synthetic-preview-only";
-  failUnless(work.action_class === "NON_PRODUCTION_MUTATION", "WLE_ACTION_CLASS_DENIED");
+  failUnless(work.action_class === "PREVIEW_WRITE", "WLE_ACTION_CLASS_DENIED");
   failUnless(
     work.required_capabilities.length === 1 &&
     work.required_capabilities[0]?.id === capability &&
