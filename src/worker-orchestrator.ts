@@ -36,10 +36,17 @@ function codeFor(error:unknown): string {
 // CONTROL_PLANE_AUTHORIZATION_FAILED cannot be clustered or repaired: the HTTP status and the inner
 // provider code sit after the colons of the client error and were discarded, which is why every
 // authorization failure looked identical on its row.
+const CONTROL_PLANE_FAILURE_CODE=/^[A-Z0-9_]+:[0-9]{3}:[A-Z0-9_]+$/;
+
 function failureDetail(error:unknown): string {
   if(!(error instanceof Error)) return "UNKNOWN_FAILURE";
   const message=error.message.trim();
-  return (message || "UNKNOWN_FAILURE").slice(0,240);
+  if(!message) return "UNKNOWN_FAILURE";
+  // A control-plane failure carries its HTTP status and inner provider code after the colons, for
+  // example CONTROL_PLANE_AUTHORIZATION_FAILED:403:INVALID_AUTHORIZATION_REQUEST. Only that code
+  // chain is retained: free text is never written to the durable queue.
+  if(CONTROL_PLANE_FAILURE_CODE.test(message)) return message.slice(0,160);
+  return message.split(":")[0] || "UNKNOWN_FAILURE";
 }
 
 // A blocked authorization previously recorded one constant, so the capability that blocked it was lost.
