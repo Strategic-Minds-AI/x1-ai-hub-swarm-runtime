@@ -10,6 +10,9 @@ import { createServer } from "node:http";
 import { ControlPlaneClient } from "./control-plane-client.js";
 import { SupabaseWorkQueue } from "./work-queue-client.js";
 import { processNextWork } from "./worker-orchestrator.js";
+import type { LeasedWork } from "./types.js";
+import { createPreviewHandler, PREVIEW_ACTION_CLASS, type PreviewRuntimeContext, type PreviewWork } from "./preview-pipeline.js";
+import { createGatewayReceiptReader } from "./receipt-readback.js";
 
 function required(name:string):string {
   const value=process.env[name];
@@ -46,6 +49,73 @@ const controlPlane=new ControlPlaneClient({
   internalServiceToken:internalToken,
 });
 
+// Preview dispatch. Fail-closed by default: the feature flag, the deploy authorization
+// and the preview host allowlist are all off unless the environment says otherwise.
+const previewContext:PreviewRuntimeContext={
+  runtime_env:environment,
+  system_tenant_id:tenantId,
+  preview_enabled:process.env.X1_PREVIEW_ENABLED==="true",
+  staging_supabase_ref:process.env.X1_STAGING_SUPABASE_REF ?? "",
+  production_supabase_ref:process.env.X1_PRODUCTION_SUPABASE_REF ?? "",
+  source_sha:sourceSha,
+};
+
+const previewHostAllowlist=(process.env.X1_PREVIEW_HOST_ALLOWLIST ?? "")
+  .split(",")
+  .map((entry)=>entry.trim().toLowerCase())
+  .filter((entry)=>entry.length>0);
+
+const receipts=createGatewayReceiptReader({
+  gatewayUrl:dbGatewayUrl,
+  internalServiceToken:internalToken,
+});
+
+async function probePreviewUrl(url:string):Promise<{reachable:boolean;http_status:number;checked_at:string}> {
+  const checkedAt=new Date().toISOString();
+  if(url.indexOf("https://")!==0) return {reachable:false,http_status:0,checked_at:checkedAt};
+  try {
+    const response=await fetch(url,{method:"HEAD"});
+    return {reachable:response.status===200,http_status:response.status,checked_at:checkedAt};
+  } catch {
+    return {reachable:false,http_status:0,checked_at:checkedAt};
+  }
+}
+
+const previewHandler=createPreviewHandler({
+  context:previewContext,
+  workerIdentity:workerId,
+  receipts,
+  deployAuthorized:process.env.X1_PREVIEW_DEPLOY_AUTHORIZED==="true",
+  previewHostAllowlist,
+  probePreviewUrl,
+});
+
+async function dispatchWork(work:LeasedWork):Promise<unknown> {
+  if(work.action_class==="READ_ONLY") {
+    return {
+      acknowledged:true,
+      missionId:work.mission_id ?? null,
+      workPacketId:work.work_packet_id,
+      taskId:work.task_id,
+      sourceSha,
+    };
+  }
+  if(work.action_class===PREVIEW_ACTION_CLASS) {
+    const result=await previewHandler(work as unknown as PreviewWork);
+    if(!result.ok) throw new Error(result.code+": "+result.reason);
+    return {
+      acknowledged:true,
+      workPacketId:work.work_packet_id,
+      taskId:work.task_id,
+      sourceSha,
+      actionClass:work.action_class,
+      code:result.code,
+      preview:result.artifact ?? null,
+    };
+  }
+  throw new Error("NO_HANDLER_FOR_ACTION_CLASS:"+String(work.action_class));
+}
+
 let running=false;
 let stopping=false;
 let lastTick:{at:string;status:string;code?:string}={at:new Date().toISOString(),status:"BOOTING"};
@@ -61,16 +131,7 @@ async function tick():Promise<void> {
       gatewayUrl:dbGatewayUrl,
       internalServiceToken:internalToken,
       workerId,
-      handler:async(work)=>{
-        if(work.action_class!=="READ_ONLY") throw new Error("NO_PREVIEW_HANDLER_FOR_MUTATION");
-        return {
-          acknowledged:true,
-          missionId:work.mission_id ?? null,
-          workPacketId:work.work_packet_id,
-          taskId:work.task_id,
-          sourceSha,
-        };
-      },
+      handler:async(work)=>dispatchWork(work),
     });
     lastTick={at:new Date().toISOString(),status:result.status,code:result.code};
   } catch(error) {
