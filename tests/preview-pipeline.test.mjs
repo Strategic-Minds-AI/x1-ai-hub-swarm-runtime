@@ -177,7 +177,11 @@ test("guardian gate: only an explicit website_artifact validation can certify a 
 });
 
 test("READ_ONLY work is never a preview mutation, so no artifact or manifest is required of it", () => {
-  const readOnly = work({ action_class: "READ_ONLY", payload: { noindex: true, target_environment: "preview", supabase_ref: STAGING } });
+  const readOnly = {
+    work_id: "work-readonly-1", task_id: TASK, tenant_id: TENANT, requested_by: REQUESTER,
+    action_class: "READ_ONLY", source_sha: SHA,
+    payload: { noindex: true, target_environment: "preview", supabase_ref: STAGING }
+  };
   const gate = evaluateFeatureGate(context, readOnly);
   assert.equal(gate.code, PREVIEW_CODES.ACTION_UNSUPPORTED);
   assert.equal(gate.ok, false);
