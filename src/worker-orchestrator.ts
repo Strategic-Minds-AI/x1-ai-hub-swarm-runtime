@@ -83,12 +83,12 @@ export async function processNextWork<T=unknown>(
     });
   } catch(error) {
     const code=codeFor(error);
-    await config.queue.finishWork(work,"FAILED",code);
+    await config.queue.finishWork(work,"FAILED",failureDetail(error));
     return {status:"FAILED",workId:work.work_id,code};
   }
 
   if(!authorization.allowed) {
-    await config.queue.finishWork(work,"BLOCKED","CAPABILITY_BOOTSTRAP_BLOCKED");
+    await config.queue.finishWork(work,"BLOCKED","CAPABILITY_BOOTSTRAP_BLOCKED:" + blockerDetail(authorization));
     return {status:"BLOCKED",workId:work.work_id,code:"CAPABILITY_BOOTSTRAP_BLOCKED"};
   }
 
@@ -118,7 +118,7 @@ export async function processNextWork<T=unknown>(
   } catch(error) {
     const code=codeFor(error);
     const status=nonRetryableAuthorizationError(code) ? "BLOCKED" : "FAILED";
-    await config.queue.finishWork(work,status,code);
+    await config.queue.finishWork(work,status,failureDetail(error));
     return {status,workId:work.work_id,code};
   }
 }
