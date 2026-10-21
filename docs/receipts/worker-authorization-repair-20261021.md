@@ -53,3 +53,15 @@ tests/worker-failure-detail.test.mjs pins both behaviors against the built outpu
 ## 7. Exact remaining action
 
 Start or repair the worker service with X1_CONTROL_PLANE_URL set to the functions/v1/project-zero-authorize URL, X1_DB_GATEWAY_URL set to the functions/v1/project-zero-db-gateway URL, the tenant id, and the internal service token whose sha256 is the active row in x1_service_auth_hashes. Then submit one idempotent READ_ONLY job and verify: one lease row for the worker, one execution-ledger row COMPLETED with a receipt id, one x1_bootstrap_authorizations row for the task, the source SHA, and the rollback reference.
+
+## 8. Review notes after the first CI run
+
+The first push failed CI on one existing expectation, which is recorded here rather than hidden:
+
+tests/worker-orchestrator.test.mjs asserted that blocked work is finished with exactly CAPABILITY_BOOTSTRAP_BLOCKED. That expectation moved to CAPABILITY_BOOTSTRAP_BLOCKED:skill-creator=MISSING_SKILL, because the capability that blocked the work is the fact an operator needs and it is already present in the queue row required_capabilities column. The purpose of that test, that the handler is never invoked and the work is frozen, is unchanged.
+
+The suite also pins a fingerprint rule: the durable record carries an error class and never an error message. The queue detail therefore keeps only a code chain matching CLASS:HTTP_STATUS:INNER_CODE, which is what the control-plane client throws. Any other message still stores its class only, exactly as before, so no free text can reach the durable queue.
+
+## 9. What remains for a separate change
+
+x1_execution_ledger.failure_fingerprint stored the literal string Error on the one failed row, which is the error class name and therefore carries no information. Replacing it with a real class fingerprint is a deliberate change to a behavior the suite pins separately and was not folded into this repair.
