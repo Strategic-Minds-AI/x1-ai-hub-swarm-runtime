@@ -11,6 +11,10 @@
 
 export const PREVIEW_ACTION_CLASS = "NON_PRODUCTION_MUTATION";
 
+// A builder or worker identity may never issue the QA or Guardian receipt that
+// certifies its own output, whatever name it presents.
+export const DENIED_RECEIPT_ISSUERS = ["base44-builder", "base44-superagent", "x1-p0-controlled-worker-restoration"];
+
 export const PREVIEW_CODES = Object.freeze({
   FEATURE_DISABLED: "PREVIEW_FEATURE_DISABLED",
   ENV_NOT_PREVIEW: "PREVIEW_ENV_NOT_PREVIEW",
@@ -121,7 +125,7 @@ export function evaluateDatabaseFencing(context: PreviewRuntimeContext, work: Pr
 export function evaluateIndependentQaGate(work: PreviewWork, qa: PreviewQaReceipt | null, workerIdentity: string): GateResult {
   if (!qa || !qa.receipt_id) return deny(PREVIEW_CODES.QA_MISSING, "an independent QA receipt is required before an artifact is accepted");
   if (qa.verdict !== "PASS") return deny(PREVIEW_CODES.QA_NOT_PASS, "the QA verdict is not PASS");
-  if (qa.source_system === workerIdentity || qa.source_system === work.requested_by) {
+  if (qa.source_system === workerIdentity || qa.source_system === work.requested_by || DENIED_RECEIPT_ISSUERS.indexOf(qa.source_system) !== -1) {
     return deny(PREVIEW_CODES.QA_NOT_INDEPENDENT, "the QA receipt was issued by the worker or the requester");
   }
   const sha = work.source_sha || "";
@@ -131,7 +135,7 @@ export function evaluateIndependentQaGate(work: PreviewWork, qa: PreviewQaReceip
 
 export function evaluateGuardianGate(guardian: PreviewGuardianReceipt | null, work: PreviewWork, workerIdentity: string): GateResult {
   if (!guardian) return permit("PREVIEW_GUARDIAN_PENDING", "no Guardian receipt yet: the artifact stays undeployed and cannot be promoted");
-  if (guardian.source_system === workerIdentity || guardian.source_system === work.requested_by) {
+  if (guardian.source_system === workerIdentity || guardian.source_system === work.requested_by || DENIED_RECEIPT_ISSUERS.indexOf(guardian.source_system) !== -1) {
     return deny(PREVIEW_CODES.GUARDIAN_NOT_INDEPENDENT, "the Guardian receipt was issued by the worker or the requester");
   }
   if (guardian.verdict !== "PASS") return deny(PREVIEW_CODES.GUARDIAN_NOT_PASS, "the Guardian verdict is not PASS");
