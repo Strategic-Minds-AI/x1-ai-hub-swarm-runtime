@@ -32,6 +32,27 @@ function codeFor(error:unknown): string {
   return error.message.split(":")[0] ?? "UNKNOWN_FAILURE";
 }
 
+// The durable queue must keep the detail that explains a failure. A bare code such as
+// CONTROL_PLANE_AUTHORIZATION_FAILED cannot be clustered or repaired: the HTTP status and the inner
+// provider code sit after the colons of the client error and were discarded, which is why every
+// authorization failure looked identical on its row.
+function failureDetail(error:unknown): string {
+  if(!(error instanceof Error)) return "UNKNOWN_FAILURE";
+  const message=error.message.trim();
+  return (message || "UNKNOWN_FAILURE").slice(0,240);
+}
+
+// A blocked authorization previously recorded one constant, so the capability that blocked it was lost.
+function blockerDetail(authorization:unknown): string {
+  const source=authorization as {blockers?:Array<{capabilityId?:string;state?:string}>} | null;
+  const blockers=source && Array.isArray(source.blockers) ? source.blockers : [];
+  if(blockers.length===0) return "UNSPECIFIED";
+  return blockers
+    .map((blocker)=>String((blocker && blocker.capabilityId) || "UNKNOWN") + "=" + String((blocker && blocker.state) || "UNKNOWN"))
+    .join(",")
+    .slice(0,200);
+}
+
 function nonRetryableAuthorizationError(code:string): boolean {
   return [
     "CAPABILITY_BOOTSTRAP_BLOCKED",
