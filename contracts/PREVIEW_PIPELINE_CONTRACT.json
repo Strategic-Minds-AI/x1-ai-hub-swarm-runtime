@@ -1,0 +1,153 @@
+{
+  "contract": "strategic-minds.x1.preview-pipeline",
+  "version": "1.2.0",
+  "purpose": "One contract between the launch engine that builds the artifact, the runtime that gates the preview, and the control plane that issues the independent validation receipt.",
+  "participants": {
+    "launch_engine": "Strategic-Minds-AI/x1-launch-engine produces the sitepack build artifact and its manifest",
+    "runtime": "Strategic-Minds-AI/x1-ai-hub-swarm-runtime verifies the manifest and the receipts on the preview worker",
+    "control_plane": "Strategic-Minds-AI/x1-ai-hub-control-plane reads execution evidence and issues the independent_validation receipt"
+  },
+  "build_manifest": {
+    "schema": "strategic-minds/sitepack-build-manifest/v1",
+    "required_keys": [
+      "schema",
+      "sitepack_id",
+      "industry_slug",
+      "phase",
+      "target_environment",
+      "noindex",
+      "sitemap",
+      "lead_mode",
+      "source_sha",
+      "gates",
+      "artifact_digest",
+      "files"
+    ],
+    "source_sha": {
+      "pattern": "^[0-9a-f]{40}$",
+      "unpinned_value": "UNPINNED"
+    },
+    "artifact_digest": {
+      "algorithm": "sha256",
+      "pattern": "^[0-9a-f]{64}$",
+      "scope": "sorted emitted file list, each entry path:sha256, newline joined, trailing newline"
+    },
+    "files_entry": {
+      "required_keys": [
+        "path",
+        "bytes",
+        "sha256"
+      ],
+      "sha256_pattern": "^[0-9a-f]{64}$"
+    },
+    "required_gates": [
+      "noindex_enforced",
+      "preview_target_enforced",
+      "lead_endpoint_staging_fenced",
+      "production_reference_absent",
+      "source_sha_pinned",
+      "synthetic_label_required"
+    ]
+  },
+  "validation_receipt": {
+    "table": "public.x1_audit_receipts",
+    "receipt_type": "independent_validation",
+    "required_row_keys": [
+      "receipt_id",
+      "receipt_type",
+      "tenant_id",
+      "source_system",
+      "source_sha",
+      "payload"
+    ],
+    "required_payload_keys": [
+      "task_id",
+      "tenant_id",
+      "decision",
+      "evidence_digest",
+      "validation_kind",
+      "artifact_digest",
+      "build_evidence",
+      "build_source_sha",
+      "validator_identity",
+      "validator_credential_class"
+    ],
+    "decision_values": [
+      "PASS",
+      "FAIL",
+      "BLOCKED"
+    ],
+    "validator_identity_prefixes": [
+      "guardian-",
+      "vision-cortex-"
+    ],
+    "validator_credential_class": "VALIDATOR",
+    "forbidden_issuers": [
+      "x1-swarm-preview-1",
+      "x1-swarm-production",
+      "x1-p0-controlled-worker-restoration",
+      "base44-builder",
+      "base44-superagent"
+    ],
+    "release_certified": false,
+    "required_kind": "website_artifact",
+    "conditional_kinds": {
+      "execution_evidence": "a READ_ONLY validation: no artifact_digest and no build_evidence key is written, and the runtime gate never accepts it for a preview build",
+      "website_artifact": "the only kind accepted for a preview build"
+    },
+    "build_evidence": {
+      "required_for": "website_artifact",
+      "keys": [
+        "artifact_digest",
+        "source_sha",
+        "file_count"
+      ],
+      "artifact_digest_must_equal": "build_manifest.artifact_digest",
+      "source_sha_must_equal": "work.source_sha",
+      "file_count_min": 1
+    }
+  },
+  "preview_artifact": {
+    "statuses": [
+      "PREPARED_NOT_DEPLOYED",
+      "PREVIEW_READY"
+    ],
+    "ready_requires": [
+      "every gate passed",
+      "an independent_validation receipt bound to the same tenant, task, artifact digest and source SHA, issued by a VALIDATOR-class identity",
+      "deployment evidence whose preview URL answered 200 on a host inside the preview allowlist"
+    ],
+    "production_touched": false,
+    "noindex": true
+  },
+  "runtime_refusals": [
+    "PREVIEW_FEATURE_DISABLED",
+    "PREVIEW_ENV_NOT_PREVIEW",
+    "PREVIEW_ACTION_CLASS_UNSUPPORTED",
+    "PREVIEW_NOINDEX_REQUIRED",
+    "PREVIEW_TARGET_NOT_PREVIEW",
+    "PREVIEW_TENANT_MISMATCH",
+    "PREVIEW_DB_REF_REQUIRED",
+    "PREVIEW_DB_REF_NOT_STAGING",
+    "PREVIEW_PRODUCTION_FENCE_VIOLATION",
+    "PREVIEW_BUILD_MANIFEST_INVALID",
+    "PREVIEW_BUILD_SHA_MISMATCH",
+    "PREVIEW_QA_RECEIPT_MISSING",
+    "PREVIEW_QA_RECEIPT_INVALID",
+    "PREVIEW_GUARDIAN_RECEIPT_MISSING",
+    "PREVIEW_GUARDIAN_RECEIPT_INVALID",
+    "PREVIEW_GUARDIAN_KIND_INVALID",
+    "PREVIEW_RECEIPT_TASK_MISMATCH",
+    "PREVIEW_RECEIPT_TENANT_MISMATCH",
+    "PREVIEW_RECEIPT_ARTIFACT_MISMATCH",
+    "PREVIEW_READBACK_FAILED",
+    "PREVIEW_DEPLOY_NOT_AUTHORIZED",
+    "PREVIEW_DEPLOY_UNVERIFIED"
+  ],
+  "acceptance": {
+    "manifest_case": "a real launch engine manifest for the pinned source SHA is accepted on its required keys, digests and gates alone",
+    "receipt_case": "a control plane independent_validation receipt bound to that manifest digest is accepted, and any mismatch of tenant, task, digest, SHA, issuer class or decision is refused",
+    "evidence_case": "the preview never reports PREVIEW_READY without verified deployment evidence",
+    "kind_case": "an execution-evidence receipt (a READ_ONLY run with no website artifact) can never satisfy a preview build gate, whatever else it carries"
+  }
+}
