@@ -70,6 +70,8 @@ function guardianRow(over) {
     source_system: "guardian-vision-cortex", source_sha: SHA,
     payload: {
       task_id: TASK, tenant_id: TENANT, decision: "PASS", artifact_digest: ARTIFACT,
+      validation_kind: "website_artifact",
+      build_evidence: { artifact_digest: ARTIFACT, source_sha: SHA, file_count: 2 },
       validator_identity: "guardian-vision-cortex", validator_credential_class: "VALIDATOR"
     }
   }, over || {});
@@ -160,6 +162,28 @@ test("guardian gate: an independent VALIDATOR receipt is required, and a forgery
   assert.equal(evaluateGuardianGate([guardianRow({ payload: Object.assign(guardianRow().payload, { artifact_digest: "c".repeat(64) }) })], work(), ARTIFACT, WORKER).code, PREVIEW_CODES.RECEIPT_ARTIFACT_MISMATCH);
   assert.equal(evaluateGuardianGate([guardianRow(), qaRow()], work(), ARTIFACT, WORKER).ok, true);
 });
+
+test("guardian gate: only an explicit website_artifact validation can certify a preview build", () => {
+  const row = (payload) => { const built = guardianRow(); built.payload = Object.assign({}, guardianRow().payload, payload); return [built]; };
+  assert.equal(evaluateGuardianGate(row({ validation_kind: "execution_evidence" }), work(), ARTIFACT, WORKER).code, PREVIEW_CODES.GUARDIAN_KIND_INVALID);
+  assert.equal(evaluateGuardianGate(row({ validation_kind: undefined }), work(), ARTIFACT, WORKER).code, PREVIEW_CODES.GUARDIAN_KIND_INVALID);
+  assert.equal(evaluateGuardianGate(row({ build_evidence: undefined }), work(), ARTIFACT, WORKER).code, PREVIEW_CODES.GUARDIAN_KIND_INVALID);
+  assert.equal(evaluateGuardianGate(row({ build_evidence: { artifact_digest: "c".repeat(64), source_sha: SHA, file_count: 2 } }), work(), ARTIFACT, WORKER).code, PREVIEW_CODES.GUARDIAN_KIND_INVALID);
+  assert.equal(evaluateGuardianGate(row({ build_evidence: { artifact_digest: ARTIFACT, source_sha: OTHER_SHA, file_count: 2 } }), work(), ARTIFACT, WORKER).code, PREVIEW_CODES.GUARDIAN_KIND_INVALID);
+  assert.equal(evaluateGuardianGate(row({ build_evidence: { artifact_digest: ARTIFACT, source_sha: SHA, file_count: 0 } }), work(), ARTIFACT, WORKER).code, PREVIEW_CODES.GUARDIAN_KIND_INVALID);
+  // an execution-evidence receipt carries no artifact digest at all, so it fails even earlier
+  assert.equal(evaluateGuardianGate(row({ validation_kind: "execution_evidence", artifact_digest: undefined }), work(), ARTIFACT, WORKER).code, PREVIEW_CODES.RECEIPT_ARTIFACT_MISMATCH);
+  assert.equal(evaluateGuardianGate([guardianRow()], work(), ARTIFACT, WORKER).ok, true);
+});
+
+test("READ_ONLY work is never a preview mutation, so no artifact or manifest is required of it", () => {
+  const readOnly = work({ action_class: "READ_ONLY", payload: { noindex: true, target_environment: "preview", supabase_ref: STAGING } });
+  const gate = evaluateFeatureGate(context, readOnly);
+  assert.equal(gate.code, PREVIEW_CODES.ACTION_UNSUPPORTED);
+  assert.equal(gate.ok, false);
+  assert.equal(readOnly.payload.build_manifest, undefined, "a READ_ONLY run carries no build manifest and no artifact digest");
+});
+
 
 test("handler reads the receipts itself and prepares an artifact without deploying", async () => {
   const run = handler();
