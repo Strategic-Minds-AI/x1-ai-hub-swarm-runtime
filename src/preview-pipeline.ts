@@ -25,6 +25,10 @@ export const BUILD_MANIFEST_SCHEMA = "strategic-minds/sitepack-build-manifest/v1
 export const REQUIRED_MANIFEST_KEYS = ["schema", "sitepack_id", "industry_slug", "phase", "target_environment", "noindex", "sitemap", "lead_mode", "source_sha", "gates", "artifact_digest", "files"];
 export const REQUIRED_MANIFEST_GATES = ["noindex_enforced", "preview_target_enforced", "lead_endpoint_staging_fenced", "production_reference_absent", "source_sha_pinned", "synthetic_label_required"];
 export const RECEIPT_TYPES = { QA: "independent_qa", GUARDIAN: "independent_validation" };
+// A preview build can only be certified by a website-artifact validation. Execution-evidence
+// validation (a READ_ONLY run, which has no artifact at all) is a different class and is never
+// accepted here, whatever else the receipt carries.
+export const WEBSITE_ARTIFACT_KIND = "website_artifact";
 
 export const PREVIEW_CODES = Object.freeze({
   FEATURE_DISABLED: "PREVIEW_FEATURE_DISABLED",
@@ -42,6 +46,7 @@ export const PREVIEW_CODES = Object.freeze({
   QA_INVALID: "PREVIEW_QA_RECEIPT_INVALID",
   GUARDIAN_MISSING: "PREVIEW_GUARDIAN_RECEIPT_MISSING",
   GUARDIAN_INVALID: "PREVIEW_GUARDIAN_RECEIPT_INVALID",
+  GUARDIAN_KIND_INVALID: "PREVIEW_GUARDIAN_KIND_INVALID",
   RECEIPT_TASK_MISMATCH: "PREVIEW_RECEIPT_TASK_MISMATCH",
   RECEIPT_TENANT_MISMATCH: "PREVIEW_RECEIPT_TENANT_MISMATCH",
   RECEIPT_ARTIFACT_MISMATCH: "PREVIEW_RECEIPT_ARTIFACT_MISMATCH",
@@ -279,7 +284,23 @@ export function evaluateGuardianGate(rows: ReceiptRow[], work: PreviewWork, mani
   if (credentialClassOf(row) !== VALIDATOR_CREDENTIAL_CLASS) return deny(PREVIEW_CODES.GUARDIAN_INVALID, "the issuer is not a VALIDATOR-class credential");
   if (decisionOf(row) !== "PASS") return deny(PREVIEW_CODES.GUARDIAN_INVALID, "the Guardian decision is not PASS");
   if (!independentIssuer(work, workerIdentity, identity)) return deny(PREVIEW_CODES.GUARDIAN_INVALID, "the Guardian receipt was issued by the worker, the requester or a builder identity");
-  return permit("PREVIEW_GUARDIAN_GATE_PASSED", "an independent VALIDATOR-class receipt bound to this task and artifact digest was read back");
+  const payload = payloadOf(row);
+  if (stringField(payload, "validation_kind") !== WEBSITE_ARTIFACT_KIND) {
+    return deny(PREVIEW_CODES.GUARDIAN_KIND_INVALID, "the receipt is not an explicit website_artifact validation, so it cannot certify a preview build");
+  }
+  const build = payload.build_evidence;
+  if (!build || typeof build !== "object") return deny(PREVIEW_CODES.GUARDIAN_KIND_INVALID, "the receipt carries no build evidence for the artifact it certifies");
+  if (String((build as Record<string, unknown>).artifact_digest || "") !== manifestDigest) {
+    return deny(PREVIEW_CODES.GUARDIAN_KIND_INVALID, "the receipt build evidence names a different artifact digest than the build manifest");
+  }
+  if (String((build as Record<string, unknown>).source_sha || "") !== String(work.source_sha || "")) {
+    return deny(PREVIEW_CODES.GUARDIAN_KIND_INVALID, "the receipt build evidence was produced from a different source SHA than the work item");
+  }
+  const fileCount = Number((build as Record<string, unknown>).file_count);
+  if (!Number.isFinite(fileCount) || fileCount < 1) {
+    return deny(PREVIEW_CODES.GUARDIAN_KIND_INVALID, "the receipt build evidence names no emitted file");
+  }
+  return permit("PREVIEW_GUARDIAN_GATE_PASSED", "an independent VALIDATOR-class website_artifact receipt bound to this task, artifact digest and build evidence was read back");
 }
 
 function hostOf(url: string): string {
