@@ -60,6 +60,8 @@ test("a control plane receipt carrying exactly the contract payload keys is acce
   payload.task_id = work.task_id;
   payload.tenant_id = work.tenant_id;
   payload.artifact_digest = DIGEST;
+  payload.validation_kind = contract.validation_receipt.required_kind;
+  payload.build_evidence = { artifact_digest: DIGEST, source_sha: SHA, file_count: 1 };
   payload.validator_identity = "guardian-vision-cortex";
   payload.validator_credential_class = contract.validation_receipt.validator_credential_class;
   const row = { receipt_id: "VC-1", receipt_type: contract.validation_receipt.receipt_type, tenant_id: work.tenant_id, source_system: "guardian-vision-cortex", source_sha: SHA, payload: payload };
