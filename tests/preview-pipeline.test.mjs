@@ -47,11 +47,14 @@ function manifest(over) {
 }
 const context = { runtime_env: "preview", system_tenant_id: TENANT, preview_enabled: true, staging_supabase_ref: STAGING, production_supabase_ref: PRODUCTION, source_sha: SHA };
 function work(over) {
-  return Object.assign({
+  const base = {
     work_id: "work-1", task_id: TASK, tenant_id: TENANT, requested_by: REQUESTER,
     action_class: "NON_PRODUCTION_MUTATION", source_sha: SHA,
     payload: { noindex: true, target_environment: "preview", supabase_ref: STAGING, sitepack_id: "cobalt-hoodworks-tampa-20261021", build_manifest: manifest() }
-  }, over || {});
+  };
+  const merged = Object.assign({}, base, over || {});
+  merged.payload = Object.assign({}, base.payload, (over && over.payload) || {});
+  return merged;
 }
 function qaRow(over) {
   return Object.assign({
@@ -178,7 +181,7 @@ test("handler refuses every failing gate before producing an artifact", async ()
   const cases = [
     [work({ payload: { noindex: false } }), undefined, undefined, PREVIEW_CODES.NOINDEX_REQUIRED],
     [work({ payload: { supabase_ref: PRODUCTION } }), undefined, undefined, PREVIEW_CODES.PRODUCTION_FENCE],
-    [work({ payload: { supabase_ref: STAGING, noindex: true, target_environment: "preview" } }), undefined, undefined, PREVIEW_CODES.BUILD_MANIFEST_INVALID],
+    [work({ payload: { build_manifest: undefined } }), undefined, undefined, PREVIEW_CODES.BUILD_MANIFEST_INVALID],
     [work(), [], undefined, PREVIEW_CODES.QA_MISSING],
     [work(), [qaRow()], undefined, PREVIEW_CODES.GUARDIAN_MISSING],
     [work(), [qaRow(), guardianRow({ payload: Object.assign(guardianRow().payload, { decision: "BLOCKED" }) })], undefined, PREVIEW_CODES.GUARDIAN_INVALID],
