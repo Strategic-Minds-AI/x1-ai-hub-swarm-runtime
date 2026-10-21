@@ -124,7 +124,7 @@ test("blocked authorization never invokes handler and freezes work",async()=>{
   });
   assert.equal(result.status,"BLOCKED");
   assert.equal(handled,false);
-  assert.deepEqual(finishes,[{status:"BLOCKED",code:"CAPABILITY_BOOTSTRAP_BLOCKED"}]);
+  assert.deepEqual(finishes,[{status:"BLOCKED",code:"CAPABILITY_BOOTSTRAP_BLOCKED:skill-creator=MISSING_SKILL"}]);
 });
 
 test("idle worker does nothing when queue is empty",async()=>{
