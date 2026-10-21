@@ -42,7 +42,8 @@ test("independent QA gate refuses missing, self-issued, failing and mismatched r
   assert.equal(evaluateIndependentQaGate(work(), null, "x1-swarm-preview-1").code, PREVIEW_CODES.QA_MISSING);
   assert.equal(evaluateIndependentQaGate(work(), { receipt_id: "q", verdict: "FAIL", source_system: "qa-bot", source_sha: SHA }, "x1-swarm-preview-1").code, PREVIEW_CODES.QA_NOT_PASS);
   assert.equal(evaluateIndependentQaGate(work(), { receipt_id: "q", verdict: "PASS", source_system: "x1-swarm-preview-1", source_sha: SHA }, "x1-swarm-preview-1").code, PREVIEW_CODES.QA_NOT_INDEPENDENT);
-  assert.equal(evaluateIndependentQaGate(work(), qa, "x1-swarm-preview-1").code, PREVIEW_CODES.QA_NOT_INDEPENDENT);
+  assert.equal(evaluateIndependentQaGate(work(), { receipt_id: "q", verdict: "PASS", source_system: work().requested_by, source_sha: SHA }, "x1-swarm-preview-1").code, PREVIEW_CODES.QA_NOT_INDEPENDENT);
+  assert.equal(evaluateIndependentQaGate(work(), { receipt_id: "q", verdict: "PASS", source_system: "base44-builder", source_sha: SHA }, "x1-swarm-preview-1").code, PREVIEW_CODES.QA_NOT_INDEPENDENT);
   assert.equal(evaluateIndependentQaGate(work(), { receipt_id: "q", verdict: "PASS", source_system: "qa-bot", source_sha: "1".repeat(40) }, "x1-swarm-preview-1").code, PREVIEW_CODES.QA_SHA_MISMATCH);
   assert.equal(evaluateIndependentQaGate(work(), qa, "x1-swarm-preview-1").ok, true);
 });
