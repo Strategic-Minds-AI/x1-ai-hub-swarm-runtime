@@ -1,0 +1,11 @@
+{
+  "upstream_repository": "XTREME-SYSTEMS/digital-dominance",
+  "base_sha": "c647c23331d658674eed36644cce9832833cc8cc",
+  "changed_contracts": [
+    "DD_SYNTHETIC_VERCEL_PREVIEW_V1"
+  ],
+  "files_sha256": {
+    "preview-adapter.mjs": "9d6d3107c66761dbedf64c40b922b92ac19b116c45e044ef9a762795bd5799c7",
+    "render-synthetic-preview.mjs": "9005ed45033c396c58264d624795576fa18a97d94230896d0c079f5cb3f0ba94"
+  }
+}

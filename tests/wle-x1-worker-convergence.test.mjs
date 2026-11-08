@@ -16,7 +16,8 @@ test("WLE private writer requires both stage-only flag and the existing DB compl
   assert.match(src,/process\.env\.X1_DB_COMPLETION_FENCING_PASS!=="true"/);
   assert.match(src,/environment!=="preview"/);
   assert.match(src,/WLE_PREVIEW_ADAPTER_DISABLED_OR_FENCING_UNVERIFIED/);
-  assert.match(src,/authorizationGuard:assertWleSignedAuthorizationScope/);
+  assert.match(src,/authorizationGuard:[\s\S]*assertWleSignedAuthorizationScope\(work,authorization\)/);
+  assert.match(src,/assertDdAuthorization\(work,authorization\)/);
 });
 test("generic prompt-preview mutation keeps its original independent QA/provider checks",()=>{
   assert.match(src,/assertIndependentQaConfig\(qaConfig,work\)/);

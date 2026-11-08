@@ -1,0 +1,98 @@
+{
+  "schema": "dd-independent-preview-validation-v1",
+  "validator": "independent_preview_validation",
+  "builder": "root",
+  "validated_at_utc": "2026-10-14T06:27:00Z",
+  "overall": "PARTIAL",
+  "deployment_id": "dpl_14C7DEeK52TicCRwjECaSQUdddi4",
+  "deployment_execution_origin": "connector-mediated; not observed X1 worker",
+  "preview_url": "https://digital-dominance-efnmoptp3-strategic-minds-advisory.vercel.app/factory-jobs/be07c310-7878-45ba-88a9-752164c8f712/",
+  "build_source_sha": "d401fb0db889eca4ac3c20b16c1444f345a09ca2",
+  "git_source_blob": "d9a53a5e2cdf7e9142757dcd3b2792444099527b",
+  "html_sha256": "50e5fffcfe76bec5619b9a0fc777617ef263b995c5b2e0a85bd8345ac184494f",
+  "checks": {
+    "http_200": "PASS",
+    "html_source_identity_exact_bytes": "PASS",
+    "http_noindex_nofollow_noarchive": "PASS",
+    "html_meta_noindex": "PASS",
+    "cache_no_store": "PASS",
+    "nosniff": "PASS",
+    "manifest_identity": "PASS",
+    "rendered_synthetic_labels": "PASS",
+    "calculator_31_x_22_682": "PASS",
+    "zero_invalid_dimensions": "PASS",
+    "synthetic_api_receipt": "CANARY-e45df9194f0dbb4845542bb0",
+    "api_persisted_false_and_customer_messages_zero": "PASS",
+    "submit_button_reenabled": "PASS",
+    "desktop_overflow_1363x936": "PASS",
+    "site_console_errors": "NONE OBSERVED; browser-extension errors excluded",
+    "desktop1440x900": "PASS via independently read-back JARVIS headless Chrome external evidence",
+    "mobile390x844": "PASS via independently read-back JARVIS headless Chrome external evidence",
+    "durable_worker_execution": "UNKNOWN",
+    "signed_guardian_receipt": "NOT OBSERVED",
+    "database_receipt_persisted": "NOT OBSERVED",
+    "tablet820x1180": "PASS via independently read-back JARVIS headless Chrome external evidence"
+  },
+  "screenshots": [
+    "desktop-1363.jpg"
+  ],
+  "local_tests": {
+    "dd_adapter": "7/7 PASS",
+    "x1_typecheck_build_and_tests": "151/151 PASS; post Git-integration repair final rerun exit 0"
+  },
+  "blockers": [
+    "Existing DD runtime activation/provider credentials/SQL fence/independent endpoint support not observed live."
+  ],
+  "limitations": [
+    "No >=99% visual parity measurement claimed.",
+    "No full operational or repeatable batch PASS claimed.",
+    "No paid AI call performed."
+  ],
+  "implementation_review": {
+    "status": "PASS",
+    "adapter_sha256": "9d6d3107c66761dbedf64c40b922b92ac19b116c45e044ef9a762795bd5799c7",
+    "dd_and_x1_adapter_copies_identical": true,
+    "implementation_committed_source": "not yet supplied; local working tree reviewed",
+    "implementation_observed_live_worker": false,
+    "checks": [
+      "Fixed immutable source; UUID-named feature branch only; no default/protected branch write path.",
+      "Existing Git integration deploy reused through GET-only list polling; no fallback Vercel deployment POST.",
+      "Earliest matching provider-native SHA/ref preview chosen.",
+      "Provider-native GitHub org/repo/ref/SHA required; optional custom metadata checked when exposed.",
+      "Exact served HTML/manifest and noindex remain mandatory.",
+      "Signed exactly one required dd-synthetic-preview-only capability; exact payload and quantity1.",
+      "Unknown provider/QA outcomes BLOCKED for reconciliation; attempt2 cannot repeat mutations.",
+      "Independent QA configuration and DD activation/database fence must validate before provider mutations."
+    ],
+    "limitations": [
+      "Preview implementation is not observed running in X1 worker.",
+      "Live SQL DD completion fence and durable independent validator deployment remain unverified."
+    ]
+  },
+  "external_browser_evidence": {
+    "device": "JARVIS-COMMAND",
+    "device_id": "68702b78-725a-4b76-878f-f1693f485414",
+    "receipt_path": "C:\\_Strategic_Minds_AI_OS\\13_TESTS\\APEX_CHROME_QA_TOOLKIT\\dd-preview-20261014-receipt.json",
+    "script_path": "C:\\_Strategic_Minds_AI_OS\\13_TESTS\\APEX_CHROME_QA_TOOLKIT\\dd-preview-20261014-qa.cjs",
+    "receipt_and_test_source_independently_readback": true,
+    "execution_performed_by": "root via existing JARVIS headless Chrome toolkit; independent validator reviewed actual remote file",
+    "status": "PASS",
+    "checks_all_three_viewports": [
+      "HTTP200",
+      "dual noindex",
+      "calculator initial400",
+      "31x22=682",
+      "zero Invalid dimensions",
+      "synthetic fixed API receipt",
+      "no horizontal document overflow",
+      "no pageerror events"
+    ],
+    "screenshot_metadata_verified": {
+      "desktop_bytes": 1329118,
+      "tablet_bytes": 1109606,
+      "mobile_bytes": 648221
+    },
+    "screenshot_pixel_parity": "NOT MEASURED",
+    "console_capture_limitation": "Remote test captures pageerror, not console.error; separate independent cloud browser observed no site console errors at1363x936."
+  }
+}
