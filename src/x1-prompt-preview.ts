@@ -59,14 +59,28 @@ export function compileX1PreviewPack(work:LeasedWork):PreviewPack {
  gate(/NOT A REAL BUSINESS/i.test(html),"X1_SYNTHETIC_DISCLOSURE_REQUIRED");
  gate(!/<script[^>]+\bsrc\s*=/i.test(html)&&!/https?:\/\/(?!images\.unsplash\.com)/i.test(
      html.replace(/https?:\/\/images\.unsplash\.com[^\s"'<>)]*/g,"")),"X1_EXTERNAL_NETWORK_DENIED");
- gate(!/<form\b/i.test(html)||/action=["']#["']/.test(html),"X1_FORM_MUST_BE_LOCAL_DEMO");
+ // Synthetic no-customer-data previews cannot prove arbitrary browser form navigation safe.
+ // Until an independent HTML parser + CSP gate exists, prohibit every form and submit override.
+ gate(!/<form\b/i.test(html) && !/\bform(?:action|method|target|enctype|novalidate)\b/i.test(html),
+   "X1_FORM_MUST_BE_LOCAL_DEMO");
+ // Synthetic previews must not execute arbitrary inline JavaScript or navigate
+ // away. This is a conservative quarantine, NOT an HTML parser or sanitizer.
+ // Independent parser, CSP and browser review are still mandatory for release.
+ gate(!/<\s*(?:script|iframe|object|embed|svg|math|link|base|portal|a|area)\b/i.test(html) &&
+   !/\bon[a-z]+\s*=/i.test(html) &&
+   !/\b(?:srcdoc|srcset)\s*=/i.test(html) &&
+   !/\b(?:javascript|vbscript|data)\s*:/i.test(html) &&
+   !/<\s*meta\b[^>]*\bhttp-equiv\s*=/i.test(html) &&
+   !/@import\b/i.test(html) && !/\burl\s*\(/i.test(html),
+   "X1_EXECUTABLE_MARKUP_DENIED");
  gate(!/fetch\s*\(|XMLHttpRequest|navigator\.sendBeacon|localStorage|document\.cookie/i.test(html),
    "X1_UNAPPROVED_SIDE_EFFECT");
  const branch="feature/x1-output-"+work.work_id.toLowerCase();
  const path="generated-previews/"+work.work_id.toLowerCase()+"/index.html";
  const policies=JSON.stringify({version:2,headers:[{source:"/(.*)",headers:[
   {key:"X-Robots-Tag",value:"noindex, nofollow, noarchive"},
-  {key:"Cache-Control",value:"private, no-store"}]}]},null,2);
+  {key:"Cache-Control",value:"private, no-store"},
+  {key:"Content-Security-Policy",value:"default-src 'none'; script-src 'none'; connect-src 'none'; img-src 'self' https://images.unsplash.com; style-src 'unsafe-inline'; font-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'"}]}]},null,2);
  return Object.freeze({
   workId:work.work_id,tenantId:work.tenant_id,missionId:work.mission_id??null,
   baseSourceSha:work.source_sha as string,
@@ -175,12 +189,34 @@ export function createX1PreviewHttpProvider(config:X1PreviewProviderConfig):X1Pr
    gate(typeof d.url==="string","X1_DEPLOYMENT_URL_MISSING");
    return {id:d.id,url:"https://"+d.url+"/",target:d.target??null,alias:d.alias??[]};
   },
-  async verifyDeployed(pack,deployment){
+  async verifyDeployed(pack,deployment,sourceSha){
+   gate(SHA.test(sourceSha),"X1_DEPLOY_SOURCE_REQUIRED");
    let ready=false;
    for(let attempt=0;attempt<9;attempt++){
     const d=await api("https://api.vercel.com/v13/deployments/"+deployment.id+
       "?teamId="+VERCEL_TEAM,config.vercelToken,"GET");
-    const state=(d.deployment??d).readyState;
+    const live=d.deployment??d;
+    // Provider readiness alone is not artifact identity. Verify the exact
+    // deployment/project, byte hash, source and job before fetching its URL.
+    // Accept flat or nested project ID shapes, but never contradictory identities.
+    const projectIds=[live.projectId,live.project?.id].filter(id=>id!==undefined);
+    gate(live.id===deployment.id &&
+      projectIds.length>0 && projectIds.every(id=>id===VERCEL_PROJECT),
+      "X1_DEPLOYMENT_IDENTITY_MISMATCH");
+    // Preview-only and no aliases must be positively attested by the provider.
+    // Omitted/undefined/null alias is not evidence of an empty alias list.
+    gate(Object.hasOwn(live,"target") && live.target===null &&
+      Array.isArray(live.alias) && live.alias.length===0,
+      "X1_RELEASE_TARGET_DENIED");
+    gate(typeof live.url==="string" &&
+      "https://"+live.url+"/"===deployment.url,
+      "X1_DEPLOYMENT_URL_MISMATCH");
+    gate(live.meta?.x1Packet===pack.workId &&
+      live.meta?.x1SourceSha===sourceSha &&
+      live.meta?.x1HtmlHash===pack.sourceSha256 &&
+      live.meta?.x1Release==="PREVIEW_ONLY",
+      "X1_DEPLOYMENT_ARTIFACT_MISMATCH");
+    const state=live.readyState;
     if(state==="READY"){ready=true;break;}
     gate(!["ERROR","CANCELED","BLOCKED"].includes(state),"X1_DEPLOYMENT_FAILED");
     await new Promise(resolve=>setTimeout(resolve,1000));
@@ -200,7 +236,20 @@ export function createX1PreviewHttpProvider(config:X1PreviewProviderConfig):X1Pr
    gate(!suffix||suffix===allowedToolbar,"X1_UNEXPECTED_DEPLOYMENT_INJECTION");
    gate(sha256(body.slice(0,pack.html.length))===pack.sourceSha256,"X1_LIVE_SOURCE_HASH_MISMATCH");
    const robots=res.headers.get("x-robots-tag");
-   gate(!robots||robots.includes("noindex"),"X1_LIVE_NOINDEX_MISSING");
+   const robotsTokens=typeof robots==="string" ? robots.toLowerCase().trim().split(/[,\s]+/).filter(Boolean) : [];
+   // Require the global noindex directive and only our declared safe policy tokens.
+   // Agent-scoped noindex, conflicting index, and unknown directives are not attestation.
+   gate(robotsTokens.includes("noindex") &&
+      robotsTokens.every(token=>/^(noindex|nofollow|noarchive)$/.test(token)),
+      "X1_LIVE_NOINDEX_MISSING");
+   // The generated Vercel policy is private,no-store; delivered content
+   // must independently attest that it cannot be cached as public content.
+   const cachePolicy=res.headers.get("cache-control");
+   const cacheTokens=typeof cachePolicy==="string" ?
+      cachePolicy.toLowerCase().split(",").map(token=>token.trim()).filter(Boolean) : [];
+   gate(cacheTokens.includes("private") && cacheTokens.includes("no-store") &&
+      cacheTokens.every(token=>token==="private" || token==="no-store"),
+      "X1_LIVE_CACHE_POLICY_MISMATCH");
   }
  };
 }
