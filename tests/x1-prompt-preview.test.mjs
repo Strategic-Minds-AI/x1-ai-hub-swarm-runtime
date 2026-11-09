@@ -9,8 +9,8 @@ const HTML=['<!doctype html><html lang="en"><head><meta name="robots" content="n
 '<title>X1 Proof App</title></head><body><header><h1>X1 Build Proof</h1></header><main>',
 '<section><h2>Real application</h2><p>NOT A REAL BUSINESS. Synthetic noindex demonstration only.</p>',
 '<p>Shows real source commits, remote deploy and independent validation, with no customer data.</p>',
-'<button onclick="document.getElementById(\'c\').textContent=Number(document.getElementById(\'c\').textContent)+1">Test</button>',
-'<output id="c">0</output></section><section><h2>Second section</h2>',
+'<details><summary>Show proof</summary><output id="c">Opened</output></details>',
+'</section><section><h2>Second section</h2>',
 '<p>This is a nonproduction functional website from a bounded prompt-authoring packet.</p>',
 '<p>There are no cross-tenant claims, paid inference, checkout functions, fake business credentials, or customer contact.</p>',
 '<p>An immutable GitHub source SHA and Vercel preview deployment identify the exact delivered version.</p>',
@@ -78,6 +78,30 @@ test("synthetic preview denies all forms and submit overrides, including mislead
  assert.equal(compileX1PreviewPack(work()).sourceSha256,sha(HTML));
 });
 
+test("synthetic preview denies executable markup and outbound navigation",()=>{
+ assert.match(HTML,/<details><summary>/);
+ const variants=[
+  '<button onclick="new Image().src=&#39;//exfil.invalid/collect&#39;">Click</button>',
+  '<script>window.location.href="//exfil.invalid/collect"</script>',
+  '<a href="//exfil.invalid/collect">Leave preview</a>',
+  '<iframe src="//exfil.invalid/frame"></iframe>',
+  '<img src="x" onerror="location.assign(1)">',
+  '<style>@import "//exfil.invalid/site.css"</style>',
+  '<div style="background:url(//exfil.invalid/pixel)">CSS leak</div>',
+  '<meta http-equiv="refresh" content="0;url=//exfil.invalid/">',
+  '<svg onload="alert(1)"></svg>',
+  '<object data="//exfil.invalid/embed"></object>',
+  '<img srcset="//exfil.invalid/1 1x">'
+ ];
+ for(const fragment of variants){
+  const w=work();w.payload.files=[{path:"index.html",content:HTML.replace("</main>",fragment+"</main>")}];
+  assert.throws(()=>compileX1PreviewPack(w),/X1_EXECUTABLE_MARKUP_DENIED/,fragment);
+ }
+ const policy=compileX1PreviewPack(work()).vercelFiles[1].data;
+ assert.match(policy,/Content-Security-Policy/);
+ assert.match(policy,/script-src 'none'/);
+ assert.match(policy,/connect-src 'none'/);
+});
 test("no unreviewed paths, scripts, forms, personal data or external requests",()=>{
  for(const html of [
  HTML.replace("noindex,nofollow","index,follow"),
