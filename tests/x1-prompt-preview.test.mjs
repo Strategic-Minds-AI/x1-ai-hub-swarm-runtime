@@ -223,7 +223,7 @@ test("contradictory flat and nested project identities fail before HTML fetch",a
  const pack=compileX1PreviewPack(work());
  const project="prj_JbkX4yKWygqBFRhkHL6nbeQXM46f";
  const base={id:DEPLOY_ID,project:{id:project},target:null,alias:[],
-  url:URL.replace("https://","").replace(/\\/$/,""),
+  url:URL.replace("https://","").replace(/\/$/,""),
   meta:{x1Packet:WORK,x1SourceSha:COMMIT,x1HtmlHash:sha(HTML),x1Release:"PREVIEW_ONLY"},
   readyState:"READY"};
  const cases=[
@@ -264,12 +264,12 @@ test("contradictory flat and nested project identities fail before HTML fetch",a
 test("missing explicit preview attestation rejects before HTML fetch",async()=>{
  const pack=compileX1PreviewPack(work());
  const base={id:DEPLOY_ID,project:{id:"prj_JbkX4yKWygqBFRhkHL6nbeQXM46f"},
-  target:null,alias:[],url:URL.replace("https://","").replace(/\\/$/,""),
+  target:null,alias:[],url:URL.replace("https://","").replace(/\/$/,""),
   meta:{x1Packet:WORK,x1SourceSha:COMMIT,x1HtmlHash:sha(HTML),x1Release:"PREVIEW_ONLY"},
   readyState:"READY"};
  const cases=[
   ["target omitted",{target:undefined}],
-  ["target undefined",{target:undefined}],
+  ["non-null preview target",{target:"preview"}],
   ["aliases omitted",{alias:undefined}],
   ["aliases null",{alias:null}],
   ["aliases malformed",{alias:{}}],
