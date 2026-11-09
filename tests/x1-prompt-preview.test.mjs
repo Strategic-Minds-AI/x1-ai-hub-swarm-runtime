@@ -179,3 +179,42 @@ test("deployment identity requires the exact source commit and preserves NON_PRO
  assert.equal(requests,0);
  assert.throws(()=>compileX1PreviewPack(work({action_class:"PREVIEW_WRITE"})),/X1_NONPRODUCTION_ACTION_REQUIRED/);
 });
+
+
+test("real Vercel nested project response accepts only exact X1 preview identity",async()=>{
+ const pack=compileX1PreviewPack(work());
+ const baseLive={id:DEPLOY_ID,project:{id:"prj_JbkX4yKWygqBFRhkHL6nbeQXM46f"},
+  target:null,alias:[],url:URL.replace("https://","").replace(/\/$/,""),
+  meta:{x1Packet:WORK,x1SourceSha:COMMIT,x1HtmlHash:sha(HTML),x1Release:"PREVIEW_ONLY"},
+  readyState:"READY"};
+ const cases=[
+  ["exact nested project",{},null],
+  ["different nested project",{project:{id:"prj_other"}},"X1_DEPLOYMENT_IDENTITY_MISMATCH"],
+  ["missing project object",{project:null},"X1_DEPLOYMENT_IDENTITY_MISMATCH"],
+  ["unexpected alias",{alias:["unexpected.example"]},"X1_RELEASE_TARGET_DENIED"],
+  ["unknown artifact metadata",{meta:{}},"X1_DEPLOYMENT_ARTIFACT_MISMATCH"]
+ ];
+ for(const [name,change,errorCode] of cases){
+  let providerReads=0,htmlReads=0;
+  const provider=createX1PreviewHttpProvider({githubToken:"fake",vercelToken:"fake",
+   fetchImpl:async(url)=>{
+    if(url.includes("/v13/deployments/"+DEPLOY_ID)){
+     providerReads++;
+     return new Response(JSON.stringify({...baseLive,...change}),{status:200});
+    }
+    if(url===URL){
+     htmlReads++;
+     return new Response(HTML,{status:200,headers:{"x-robots-tag":"noindex,nofollow"}});
+    }
+    throw new Error("unexpected provider request");
+   }});
+  if(errorCode){
+   await assert.rejects(()=>provider.verifyDeployed(pack,{id:DEPLOY_ID,url:URL},COMMIT),new RegExp(errorCode),name);
+   assert.equal(htmlReads,0,name+" must fail before browser fetch");
+  } else {
+   await provider.verifyDeployed(pack,{id:DEPLOY_ID,url:URL},COMMIT);
+   assert.equal(htmlReads,1,name+" must validate exact HTML");
+  }
+  assert.equal(providerReads,1,name+" must use one resolved deployment");
+ }
+});
