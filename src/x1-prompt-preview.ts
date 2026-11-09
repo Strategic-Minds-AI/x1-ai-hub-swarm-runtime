@@ -63,13 +63,24 @@ export function compileX1PreviewPack(work:LeasedWork):PreviewPack {
  // Until an independent HTML parser + CSP gate exists, prohibit every form and submit override.
  gate(!/<form\b/i.test(html) && !/\bform(?:action|method|target|enctype|novalidate)\b/i.test(html),
    "X1_FORM_MUST_BE_LOCAL_DEMO");
+ // Synthetic previews must not execute arbitrary inline JavaScript or navigate
+ // away. This is a conservative quarantine, NOT an HTML parser or sanitizer.
+ // Independent parser, CSP and browser review are still mandatory for release.
+ gate(!/<\s*(?:script|iframe|object|embed|svg|math|link|base|portal|a|area)\b/i.test(html) &&
+   !/\bon[a-z]+\s*=/i.test(html) &&
+   !/\b(?:srcdoc|srcset)\s*=/i.test(html) &&
+   !/\b(?:javascript|vbscript|data)\s*:/i.test(html) &&
+   !/<\s*meta\b[^>]*\bhttp-equiv\s*=/i.test(html) &&
+   !/@import\b/i.test(html) && !/\burl\s*\(/i.test(html),
+   "X1_EXECUTABLE_MARKUP_DENIED");
  gate(!/fetch\s*\(|XMLHttpRequest|navigator\.sendBeacon|localStorage|document\.cookie/i.test(html),
    "X1_UNAPPROVED_SIDE_EFFECT");
  const branch="feature/x1-output-"+work.work_id.toLowerCase();
  const path="generated-previews/"+work.work_id.toLowerCase()+"/index.html";
  const policies=JSON.stringify({version:2,headers:[{source:"/(.*)",headers:[
   {key:"X-Robots-Tag",value:"noindex, nofollow, noarchive"},
-  {key:"Cache-Control",value:"private, no-store"}]}]},null,2);
+  {key:"Cache-Control",value:"private, no-store"},
+  {key:"Content-Security-Policy",value:"default-src 'none'; script-src 'none'; connect-src 'none'; img-src 'self' https://images.unsplash.com; style-src 'unsafe-inline'; font-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'"}]}]},null,2);
  return Object.freeze({
   workId:work.work_id,tenantId:work.tenant_id,missionId:work.mission_id??null,
   baseSourceSha:work.source_sha as string,
