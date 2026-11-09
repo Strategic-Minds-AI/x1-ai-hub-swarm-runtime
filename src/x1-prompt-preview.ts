@@ -184,11 +184,15 @@ export function createX1PreviewHttpProvider(config:X1PreviewProviderConfig):X1Pr
     const live=d.deployment??d;
     // Provider readiness alone is not artifact identity. Verify the exact
     // deployment/project, byte hash, source and job before fetching its URL.
+    // Accept flat or nested project ID shapes, but never contradictory identities.
+    const projectIds=[live.projectId,live.project?.id].filter(id=>id!==undefined);
     gate(live.id===deployment.id &&
-      (live.projectId??live.project?.id)===VERCEL_PROJECT,
+      projectIds.length>0 && projectIds.every(id=>id===VERCEL_PROJECT),
       "X1_DEPLOYMENT_IDENTITY_MISMATCH");
-    gate(live.target==null && (!live.alias ||
-      (Array.isArray(live.alias)&&live.alias.length===0)),
+    // Preview-only and no aliases must be positively attested by the provider.
+    // Omitted/undefined/null alias is not evidence of an empty alias list.
+    gate(Object.hasOwn(live,"target") && live.target===null &&
+      Array.isArray(live.alias) && live.alias.length===0,
       "X1_RELEASE_TARGET_DENIED");
     gate(typeof live.url==="string" &&
       "https://"+live.url+"/"===deployment.url,
