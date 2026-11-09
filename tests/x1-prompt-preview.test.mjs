@@ -97,7 +97,7 @@ test("network provider commits exact source and deploys via existing GitHub/Verc
    if(url.endsWith("/git/commits"))return reply({sha:COMMIT});
    if(url.endsWith("/git/refs"))return reply({object:{sha:COMMIT}});
    if(url.includes("api.vercel.com/v13/deployments?"))return reply({deployment:{id:DEPLOY_ID,url:URL.replace("https://","").replace(/\/$/,""),target:null,alias:[]}});
-   if(url.includes("/v13/deployments/"+DEPLOY_ID))return reply({deployment:{readyState:"READY"}});
+   if(url.includes("/v13/deployments/"+DEPLOY_ID))return reply({deployment:{id:DEPLOY_ID,projectId:"prj_JbkX4yKWygqBFRhkHL6nbeQXM46f",target:null,alias:[],url:URL.replace("https://","").replace(/\/$/,""),meta:{x1Packet:WORK,x1SourceSha:COMMIT,x1HtmlHash:sha(HTML),x1Release:"PREVIEW_ONLY"},readyState:"READY"}});
    if(url===URL)return reply(HTML,200,{"x-robots-tag":"noindex,nofollow"});
    throw Error("Unexpected URL: "+url);
   }
@@ -137,4 +137,45 @@ test("browser validator failure prevents a success receipt",async()=>{
   deployPreview:async()=>({id:DEPLOY_ID,url:URL,target:null}),
   verifyDeployed:async()=>{throw new Error("INDEPENDENT_VALIDATION_REQUIRED");}
  }),/INDEPENDENT_VALIDATION_REQUIRED/);
+});
+
+test("deployment artifact identity rejects wrong ID, project, target, aliases, URL, and metadata",async()=>{
+ const pack=compileX1PreviewPack(work());
+ const good={id:DEPLOY_ID,projectId:"prj_JbkX4yKWygqBFRhkHL6nbeQXM46f",target:null,alias:[],
+  url:URL.replace("https://","").replace(/\/$/,""),
+  meta:{x1Packet:WORK,x1SourceSha:COMMIT,x1HtmlHash:sha(HTML),x1Release:"PREVIEW_ONLY"},
+  readyState:"READY"};
+ const bad=[
+  ["wrong deployment id",{id:"dpl_Wrong"}, "X1_DEPLOYMENT_IDENTITY_MISMATCH"],
+  ["wrong project",{projectId:"prj_wrong"}, "X1_DEPLOYMENT_IDENTITY_MISMATCH"],
+  ["production target",{target:"production"}, "X1_RELEASE_TARGET_DENIED"],
+  ["alias",{alias:["customer.example"]}, "X1_RELEASE_TARGET_DENIED"],
+  ["wrong preview url",{url:"different.vercel.app"}, "X1_DEPLOYMENT_URL_MISMATCH"],
+  ["wrong request",{meta:{...good.meta,x1Packet:"wrong"}}, "X1_DEPLOYMENT_ARTIFACT_MISMATCH"],
+  ["wrong source",{meta:{...good.meta,x1SourceSha:"e".repeat(40)}}, "X1_DEPLOYMENT_ARTIFACT_MISMATCH"],
+  ["wrong html",{meta:{...good.meta,x1HtmlHash:"f".repeat(64)}}, "X1_DEPLOYMENT_ARTIFACT_MISMATCH"],
+  ["production release metadata",{meta:{...good.meta,x1Release:"PRODUCTION"}}, "X1_DEPLOYMENT_ARTIFACT_MISMATCH"],
+  ["missing metadata",{meta:null}, "X1_DEPLOYMENT_ARTIFACT_MISMATCH"]
+ ];
+ for(const [name,change,code] of bad){
+  let browserFetches=0;
+  const provider=createX1PreviewHttpProvider({githubToken:"fake",vercelToken:"fake",
+   fetchImpl:async(url)=>{
+    if(url.includes("/v13/deployments/"+DEPLOY_ID))
+     return new Response(JSON.stringify({deployment:{...good,...change}}),{status:200});
+    browserFetches++;
+    return new Response(HTML,{status:200,headers:{"x-robots-tag":"noindex"}});
+   }});
+  await assert.rejects(()=>provider.verifyDeployed(pack,{id:DEPLOY_ID,url:URL},COMMIT),new RegExp(code),name);
+  assert.equal(browserFetches,0,"must reject before public fetch: "+name);
+ }
+});
+test("deployment identity requires the exact source commit and preserves NON_PRODUCTION_MUTATION",async()=>{
+ const pack=compileX1PreviewPack(work());
+ let requests=0;
+ const provider=createX1PreviewHttpProvider({githubToken:"fake",vercelToken:"fake",
+  fetchImpl:async()=>{requests++;throw Error("should not be reached");}});
+ await assert.rejects(()=>provider.verifyDeployed(pack,{id:DEPLOY_ID,url:URL},"not-sha"),/X1_DEPLOY_SOURCE_REQUIRED/);
+ assert.equal(requests,0);
+ assert.throws(()=>compileX1PreviewPack(work({action_class:"PREVIEW_WRITE"})),/X1_NONPRODUCTION_ACTION_REQUIRED/);
 });
