@@ -228,6 +228,14 @@ export function createX1PreviewHttpProvider(config:X1PreviewProviderConfig):X1Pr
    gate(robotsTokens.includes("noindex") &&
       robotsTokens.every(token=>/^(noindex|nofollow|noarchive)$/.test(token)),
       "X1_LIVE_NOINDEX_MISSING");
+   // The generated Vercel policy is private,no-store; delivered content
+   // must independently attest that it cannot be cached as public content.
+   const cachePolicy=res.headers.get("cache-control");
+   const cacheTokens=typeof cachePolicy==="string" ?
+      cachePolicy.toLowerCase().split(",").map(token=>token.trim()).filter(Boolean) : [];
+   gate(cacheTokens.includes("private") && cacheTokens.includes("no-store") &&
+      cacheTokens.every(token=>token==="private" || token==="no-store"),
+      "X1_LIVE_CACHE_POLICY_MISMATCH");
   }
  };
 }
