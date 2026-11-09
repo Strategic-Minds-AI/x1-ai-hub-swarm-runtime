@@ -303,6 +303,10 @@ test("served preview requires explicit X-Robots-Tag noindex directive",async()=>
   ["missing header",{},true],
   ["explicit index",{"x-robots-tag":"index,follow"},true],
   ["lookalike directive",{"x-robots-tag":"not-noindex-allowed"},true],
+  ["conflicting index token",{"x-robots-tag":"noindex, index"},true],
+  ["agent-scoped only noindex",{"x-robots-tag":"googlebot: noindex"},true],
+  ["unknown directive mixed with noindex",{"x-robots-tag":"noindex, follow"},true],
+  ["safe declared complete policy",{"x-robots-tag":"noindex, nofollow, noarchive"},false],
   ["case insensitive",{"x-robots-tag":"NoIndex, nofollow"},false],
   ["space-separated directive",{"x-robots-tag":"nofollow noindex"},false]
  ];

@@ -222,7 +222,11 @@ export function createX1PreviewHttpProvider(config:X1PreviewProviderConfig):X1Pr
    gate(!suffix||suffix===allowedToolbar,"X1_UNEXPECTED_DEPLOYMENT_INJECTION");
    gate(sha256(body.slice(0,pack.html.length))===pack.sourceSha256,"X1_LIVE_SOURCE_HASH_MISMATCH");
    const robots=res.headers.get("x-robots-tag");
-   gate(typeof robots==="string" && /(?:^|[,\s])noindex(?:$|[,\s])/i.test(robots),
+   const robotsTokens=typeof robots==="string" ? robots.toLowerCase().trim().split(/[,\s]+/).filter(Boolean) : [];
+   // Require the global noindex directive and only our declared safe policy tokens.
+   // Agent-scoped noindex, conflicting index, and unknown directives are not attestation.
+   gate(robotsTokens.includes("noindex") &&
+      robotsTokens.every(token=>/^(noindex|nofollow|noarchive)$/.test(token)),
       "X1_LIVE_NOINDEX_MISSING");
   }
  };
