@@ -292,3 +292,38 @@ test("missing explicit preview attestation rejects before HTML fetch",async()=>{
   assert.equal(providerReads,1,name+" must examine one provider deployment");
  }
 });
+
+test("served preview requires explicit X-Robots-Tag noindex directive",async()=>{
+ const pack=compileX1PreviewPack(work());
+ const live={id:DEPLOY_ID,project:{id:"prj_JbkX4yKWygqBFRhkHL6nbeQXM46f"},
+  target:null,alias:[],url:URL.replace("https://","").replace(/\/$/,""),
+  meta:{x1Packet:WORK,x1SourceSha:COMMIT,x1HtmlHash:sha(HTML),x1Release:"PREVIEW_ONLY"},
+  readyState:"READY"};
+ const cases=[
+  ["missing header",{},true],
+  ["explicit index",{"x-robots-tag":"index,follow"},true],
+  ["lookalike directive",{"x-robots-tag":"not-noindex-allowed"},true],
+  ["case insensitive",{"x-robots-tag":"NoIndex, nofollow"},false],
+  ["space-separated directive",{"x-robots-tag":"nofollow noindex"},false]
+ ];
+ for(const [name,headers,deny] of cases){
+  let providerReads=0,htmlReads=0;
+  const provider=createX1PreviewHttpProvider({githubToken:"synthetic-gh",vercelToken:"synthetic-vercel",
+   fetchImpl:async url=>{
+    if(url.includes("/v13/deployments/"+DEPLOY_ID)){
+     providerReads++;
+     return new Response(JSON.stringify({deployment:live}),{status:200});
+    }
+    if(url===URL){
+     htmlReads++;
+     return new Response(HTML,{status:200,headers});
+    }
+    throw new Error("unexpected provider request");
+   }});
+  const check=()=>provider.verifyDeployed(pack,{id:DEPLOY_ID,url:URL},COMMIT);
+  if(deny)await assert.rejects(check,/X1_LIVE_NOINDEX_MISSING/,name);
+  else await check();
+  assert.equal(providerReads,1,name+" must validate exact provider identity");
+  assert.equal(htmlReads,1,name+" must inspect the actual served response header");
+ }
+});
