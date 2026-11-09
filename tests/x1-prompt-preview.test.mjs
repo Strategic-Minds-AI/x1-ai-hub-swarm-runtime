@@ -60,7 +60,7 @@ test("synthetic preview denies all forms and submit overrides, including mislead
  const variants=[
   '<form action="#" method="get"><input></form>',
   '<form method="get" action="#"><input></form><form action="/relative"><input></form>',
-  '<form action="#"><button>Local demo</button></form><form action="https://evil.example/save"><button>Other</button></form>',
+  '<form action="#"><button>Local demo</button></form><form action="//evil.example/save"><button>Other</button></form>',
   '<form method="POST" action="#"><input name="message"></form>',
   '<form action="#"><button formaction="/receive" type="submit">Submit</button></form>',
   '<form action="#"><input type="submit" formaction="/receive"></form>',
