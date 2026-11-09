@@ -218,3 +218,77 @@ test("real Vercel nested project response accepts only exact X1 preview identity
   assert.equal(providerReads,1,name+" must use one resolved deployment");
  }
 });
+
+test("contradictory flat and nested project identities fail before HTML fetch",async()=>{
+ const pack=compileX1PreviewPack(work());
+ const project="prj_JbkX4yKWygqBFRhkHL6nbeQXM46f";
+ const base={id:DEPLOY_ID,project:{id:project},target:null,alias:[],
+  url:URL.replace("https://","").replace(/\\/$/,""),
+  meta:{x1Packet:WORK,x1SourceSha:COMMIT,x1HtmlHash:sha(HTML),x1Release:"PREVIEW_ONLY"},
+  readyState:"READY"};
+ const cases=[
+  ["nested only",{},false],
+  ["flat only",{project:undefined,projectId:project},false],
+  ["both agree",{projectId:project},false],
+  ["flat valid nested invalid",{projectId:project,project:{id:"prj_wrong"}},true],
+  ["flat invalid nested valid",{projectId:"prj_wrong"},true],
+  ["flat explicitly null nested valid",{projectId:null},true],
+  ["both project identifiers missing",{project:undefined},true]
+ ];
+ for(const [name,change,shouldReject] of cases){
+  let htmlReads=0,providerReads=0;
+  const provider=createX1PreviewHttpProvider({githubToken:"synthetic-gh",vercelToken:"synthetic-vercel",
+   fetchImpl:async(url)=>{
+    if(url.includes("/v13/deployments/"+DEPLOY_ID)){
+     providerReads++;
+     return new Response(JSON.stringify({...base,...change}),{status:200});
+    }
+    if(url===URL){
+     htmlReads++;
+     return new Response(HTML,{status:200,headers:{"x-robots-tag":"noindex,nofollow"}});
+    }
+    throw new Error("unexpected request");
+   }});
+  if(shouldReject){
+   await assert.rejects(()=>provider.verifyDeployed(pack,{id:DEPLOY_ID,url:URL},COMMIT),
+    /X1_DEPLOYMENT_IDENTITY_MISMATCH/,name);
+   assert.equal(htmlReads,0,name+" must deny before HTML fetch");
+  }else{
+   await provider.verifyDeployed(pack,{id:DEPLOY_ID,url:URL},COMMIT);
+   assert.equal(htmlReads,1,name+" should validate HTML once");
+  }
+  assert.equal(providerReads,1,name+" should verify one deployment identity");
+ }
+});
+
+test("missing explicit preview attestation rejects before HTML fetch",async()=>{
+ const pack=compileX1PreviewPack(work());
+ const base={id:DEPLOY_ID,project:{id:"prj_JbkX4yKWygqBFRhkHL6nbeQXM46f"},
+  target:null,alias:[],url:URL.replace("https://","").replace(/\\/$/,""),
+  meta:{x1Packet:WORK,x1SourceSha:COMMIT,x1HtmlHash:sha(HTML),x1Release:"PREVIEW_ONLY"},
+  readyState:"READY"};
+ const cases=[
+  ["target omitted",{target:undefined}],
+  ["target undefined",{target:undefined}],
+  ["aliases omitted",{alias:undefined}],
+  ["aliases null",{alias:null}],
+  ["aliases malformed",{alias:{}}],
+  ["aliases populated",{alias:["production.example"]}]
+ ];
+ for(const [name,change] of cases){
+  let htmlReads=0,providerReads=0;
+  const provider=createX1PreviewHttpProvider({githubToken:"synthetic-gh",vercelToken:"synthetic-vercel",
+   fetchImpl:async(url)=>{
+    if(url.includes("/v13/deployments/"+DEPLOY_ID)){
+     providerReads++;
+     return new Response(JSON.stringify({...base,...change}),{status:200});
+    }
+    if(url===URL){htmlReads++;return new Response(HTML,{status:200});}
+    throw new Error("unexpected request");
+   }});
+  await assert.rejects(()=>provider.verifyDeployed(pack,{id:DEPLOY_ID,url:URL},COMMIT),
+   /X1_RELEASE_TARGET_DENIED/,name);
+  assert.equal(htmlReads,0,name+" must deny before HTML fetch");
+  assert.equal(providerReads,1,name+" must examine one provider deployment");
+ }
+});
