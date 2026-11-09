@@ -36,6 +36,8 @@ test("valid pack contains immutable code and only Vercel preview files",()=>{
  assert.equal(p.sourcePath,"generated-previews/"+WORK+"/index.html");
  assert.deepEqual(p.vercelFiles.map(f=>f.file),["src/index.html","src/vercel.json"]);
  assert.match(p.vercelFiles[1].data,/noindex/);
+  assert.match(p.vercelFiles[1].data,/"Cache-Control"/);
+  assert.match(p.vercelFiles[1].data,/private, no-store/);
 });
 test("invalid action, identity, lease and task fail closed",()=>{
  for(const k of [{action_class:"READ_ONLY"},{action_class:"PRODUCTION_RELEASE"},
@@ -98,7 +100,7 @@ test("network provider commits exact source and deploys via existing GitHub/Verc
    if(url.endsWith("/git/refs"))return reply({object:{sha:COMMIT}});
    if(url.includes("api.vercel.com/v13/deployments?"))return reply({deployment:{id:DEPLOY_ID,url:URL.replace("https://","").replace(/\/$/,""),target:null,alias:[]}});
    if(url.includes("/v13/deployments/"+DEPLOY_ID))return reply({deployment:{id:DEPLOY_ID,projectId:"prj_JbkX4yKWygqBFRhkHL6nbeQXM46f",target:null,alias:[],url:URL.replace("https://","").replace(/\/$/,""),meta:{x1Packet:WORK,x1SourceSha:COMMIT,x1HtmlHash:sha(HTML),x1Release:"PREVIEW_ONLY"},readyState:"READY"}});
-   if(url===URL)return reply(HTML,200,{"x-robots-tag":"noindex,nofollow"});
+   if(url===URL)return reply(HTML,200,{"x-robots-tag":"noindex,nofollow","cache-control":"private, no-store"});
    throw Error("Unexpected URL: "+url);
   }
  });
@@ -164,7 +166,7 @@ test("deployment artifact identity rejects wrong ID, project, target, aliases, U
     if(url.includes("/v13/deployments/"+DEPLOY_ID))
      return new Response(JSON.stringify({deployment:{...good,...change}}),{status:200});
     browserFetches++;
-    return new Response(HTML,{status:200,headers:{"x-robots-tag":"noindex"}});
+    return new Response(HTML,{status:200,headers:{"x-robots-tag":"noindex","cache-control":"private, no-store"}});
    }});
   await assert.rejects(()=>provider.verifyDeployed(pack,{id:DEPLOY_ID,url:URL},COMMIT),new RegExp(code),name);
   assert.equal(browserFetches,0,"must reject before public fetch: "+name);
@@ -204,7 +206,7 @@ test("real Vercel nested project response accepts only exact X1 preview identity
     }
     if(url===URL){
      htmlReads++;
-     return new Response(HTML,{status:200,headers:{"x-robots-tag":"noindex,nofollow"}});
+     return new Response(HTML,{status:200,headers:{"x-robots-tag":"noindex,nofollow","cache-control":"private, no-store"}});
     }
     throw new Error("unexpected provider request");
    }});
@@ -245,7 +247,7 @@ test("contradictory flat and nested project identities fail before HTML fetch",a
     }
     if(url===URL){
      htmlReads++;
-     return new Response(HTML,{status:200,headers:{"x-robots-tag":"noindex,nofollow"}});
+     return new Response(HTML,{status:200,headers:{"x-robots-tag":"noindex,nofollow","cache-control":"private, no-store"}});
     }
     throw new Error("unexpected request");
    }});
@@ -320,7 +322,7 @@ test("served preview requires explicit X-Robots-Tag noindex directive",async()=>
     }
     if(url===URL){
      htmlReads++;
-     return new Response(HTML,{status:200,headers});
+     return new Response(HTML,{status:200,headers:{"cache-control":"private, no-store",...headers}});
     }
     throw new Error("unexpected provider request");
    }});
@@ -329,5 +331,43 @@ test("served preview requires explicit X-Robots-Tag noindex directive",async()=>
   else await check();
   assert.equal(providerReads,1,name+" must validate exact provider identity");
   assert.equal(htmlReads,1,name+" must inspect the actual served response header");
+ }
+});
+test("served preview requires private no-store response cache policy",async()=>{
+ const pack=compileX1PreviewPack(work());
+ const live={id:DEPLOY_ID,project:{id:"prj_JbkX4yKWygqBFRhkHL6nbeQXM46f"},
+  target:null,alias:[],url:URL.replace("https://","").replace(/\/$/,""),
+  meta:{x1Packet:WORK,x1SourceSha:COMMIT,x1HtmlHash:sha(HTML),x1Release:"PREVIEW_ONLY"},
+  readyState:"READY"};
+ const cases=[
+  ["header omitted",{},true],
+  ["public cache",{"cache-control":"public, max-age=0"},true],
+  ["cacheable private",{"cache-control":"private, max-age=3600"},true],
+  ["no-store without private",{"cache-control":"no-store"},true],
+  ["private without no-store",{"cache-control":"private"},true],
+  ["conflicting public",{"cache-control":"public, private, no-store"},true],
+  ["shared cache token",{"cache-control":"private, no-store, s-maxage=60"},true],
+  ["declared policy",{"cache-control":"private, no-store"},false],
+  ["case insensitive",{"cache-control":"Private, No-Store"},false]
+ ];
+ for(const [name,cacheHeaders,deny] of cases){
+  let providerReads=0,htmlReads=0;
+  const provider=createX1PreviewHttpProvider({githubToken:"synthetic-gh",vercelToken:"synthetic-vercel",
+   fetchImpl:async url=>{
+    if(url.includes("/v13/deployments/"+DEPLOY_ID)){
+     providerReads++;
+     return new Response(JSON.stringify({deployment:live}),{status:200});
+    }
+    if(url===URL){
+     htmlReads++;
+     return new Response(HTML,{status:200,headers:{"x-robots-tag":"noindex,nofollow",...cacheHeaders}});
+    }
+    throw new Error("unexpected provider request");
+   }});
+  const check=()=>provider.verifyDeployed(pack,{id:DEPLOY_ID,url:URL},COMMIT);
+  if(deny)await assert.rejects(check,/X1_LIVE_CACHE_POLICY_MISMATCH/,name);
+  else await check();
+  assert.equal(providerReads,1,name+" must verify exact provider artifact");
+  assert.equal(htmlReads,1,name+" must inspect served response headers");
  }
 });
