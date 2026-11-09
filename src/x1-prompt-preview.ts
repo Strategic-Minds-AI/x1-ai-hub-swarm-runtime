@@ -59,7 +59,10 @@ export function compileX1PreviewPack(work:LeasedWork):PreviewPack {
  gate(/NOT A REAL BUSINESS/i.test(html),"X1_SYNTHETIC_DISCLOSURE_REQUIRED");
  gate(!/<script[^>]+\bsrc\s*=/i.test(html)&&!/https?:\/\/(?!images\.unsplash\.com)/i.test(
      html.replace(/https?:\/\/images\.unsplash\.com[^\s"'<>)]*/g,"")),"X1_EXTERNAL_NETWORK_DENIED");
- gate(!/<form\b/i.test(html)||/action=["']#["']/.test(html),"X1_FORM_MUST_BE_LOCAL_DEMO");
+ // Synthetic no-customer-data previews cannot prove arbitrary browser form navigation safe.
+ // Until an independent HTML parser + CSP gate exists, prohibit every form and submit override.
+ gate(!/<form\b/i.test(html) && !/\bform(?:action|method|target|enctype|novalidate)\b/i.test(html),
+   "X1_FORM_MUST_BE_LOCAL_DEMO");
  gate(!/fetch\s*\(|XMLHttpRequest|navigator\.sendBeacon|localStorage|document\.cookie/i.test(html),
    "X1_UNAPPROVED_SIDE_EFFECT");
  const branch="feature/x1-output-"+work.work_id.toLowerCase();

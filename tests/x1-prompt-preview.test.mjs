@@ -56,6 +56,28 @@ test("all safety gates reject protected release, real customers, payment and unk
  const w=work();w.payload.postToSocial=true;
  assert.throws(()=>compileX1PreviewPack(w),/X1_UNEXPECTED_PAYLOAD_FIELD/);
 });
+test("synthetic preview denies all forms and submit overrides, including misleading safe targets",()=>{
+ const variants=[
+  '<form action="#" method="get"><input></form>',
+  '<form method="get" action="#"><input></form><form action="/relative"><input></form>',
+  '<form action="#"><button>Local demo</button></form><form action="https://evil.example/save"><button>Other</button></form>',
+  '<form method="POST" action="#"><input name="message"></form>',
+  '<form action="#"><button formaction="/receive" type="submit">Submit</button></form>',
+  '<form action="#"><input type="submit" formaction="/receive"></form>',
+  '<button formmethod="post">Override</button>',
+  '<button formtarget="_blank">New window</button>',
+  '<input formenctype="multipart/form-data">',
+  '<FORM ACTION="#">Mixed case</FORM>',
+  '<form/action="#">Malformed syntax</form>'
+ ];
+ for(const fragment of variants){
+  const w=work();w.payload.files=[{path:"index.html",content:HTML.replace("</main>",fragment+"</main>")}];
+  assert.throws(()=>compileX1PreviewPack(w),/X1_FORM_MUST_BE_LOCAL_DEMO/,fragment);
+ }
+ // Existing local click-only demonstration remains functional; no form submission path.
+ assert.equal(compileX1PreviewPack(work()).sourceSha256,sha(HTML));
+});
+
 test("no unreviewed paths, scripts, forms, personal data or external requests",()=>{
  for(const html of [
  HTML.replace("noindex,nofollow","index,follow"),
