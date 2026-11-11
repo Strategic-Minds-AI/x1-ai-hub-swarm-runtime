@@ -10,6 +10,7 @@ import { ControlPlaneClient } from "./control-plane-client.js";
 import { SupabaseWorkQueue } from "./work-queue-client.js";
 import { processNextWork } from "./worker-orchestrator.js";
 import { SingleFlightGate } from "./single-flight.js";
+import {assertReadOnlyCanary,acknowledgeReadOnlyCanary} from "./read-only-canary.js";
 
 function required(name:string):string {
   const value=process.env[name];
@@ -61,9 +62,12 @@ async function tick():Promise<void> {
       serviceRoleKey,
       supabaseUrl,
       workerId,
+      authorizationGuard:(work)=>{
+        if(work.action_class==="READ_ONLY")assertReadOnlyCanary(work,"local-ollama");
+      },
       handler:async(work)=>{
         if(work.action_class!=="READ_ONLY") throw new Error("NO_PREVIEW_HANDLER_FOR_MUTATION");
-        return {acknowledged:true,workPacketId:work.work_packet_id,taskId:work.task_id};
+        return acknowledgeReadOnlyCanary(work,"local-ollama");
       },
     });
     lastTick={at:new Date().toISOString(),status:result.status,code:result.code};
