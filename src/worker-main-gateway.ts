@@ -17,6 +17,7 @@ import {assertWleSignedAuthorizationScope,handleWleSyntheticPreview,WLE_PREVIEW_
   from "./wle-preview-adapter.js";
 import {assertWlePrivateQaConfig,requireWlePrivateQaProof}
   from "./wle-private-qa-handoff.js";
+import {assertReadOnlyCanary,acknowledgeReadOnlyCanary} from "./read-only-canary.js";
 
 function required(name:string):string {
   const value=process.env[name];
@@ -70,15 +71,13 @@ async function tick():Promise<void> {
       gatewayUrl:dbGatewayUrl,
       internalServiceToken:internalToken,
       workerId,
-      authorizationGuard:assertWleSignedAuthorizationScope,
+      authorizationGuard:(work,authorization)=>{
+        if(work.action_class==="READ_ONLY")assertReadOnlyCanary(work,"railway");
+        assertWleSignedAuthorizationScope(work,authorization);
+      },
       handler:async(work)=>{
-        if(work.action_class==="READ_ONLY")return {
-          acknowledged:true,
-          missionId:work.mission_id ?? null,
-          workPacketId:work.work_packet_id,
-          taskId:work.task_id,
-          sourceSha,
-        };
+        if(work.action_class==="READ_ONLY")
+          return acknowledgeReadOnlyCanary(work,"railway",sourceSha);
         // WLE-specific private synthetic preview, on the SAME authorized
         // singleton worker, using X1's signed capability and completion fence.
         // This is OFF unless separately approved on existing preview runtime.
