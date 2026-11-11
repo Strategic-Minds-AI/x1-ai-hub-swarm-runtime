@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHmac } from "node:crypto";
+import {assertReadOnlyCanary} from "../dist/read-only-canary.js";
 import {
   ControlPlaneClient,
   SupabaseWorkQueue,
@@ -135,4 +136,28 @@ test("idle worker does nothing when queue is empty",async()=>{
     supabaseUrl:"https://supabase.example",workerId:"worker-1",handler:()=>{},
   });
   assert.equal(result.status,"IDLE");
+});
+
+test("noncanary read-only work is BLOCKED before ledger claim and handler",async()=>{
+  const work=leasedWork();
+  const finishes=[];
+  let claimed=false;
+  let handled=false;
+  const result=await processNextWork({
+    queue:{
+      leaseNextWork:async()=>work,
+      finishWork:async(_work,status,code)=>finishes.push({status,code}),
+    },
+    controlPlane:{requestMandatoryAuthorization:async()=>authorization()},
+    bootstrapSigningKey:"signing-key",
+    workerId:"worker-1",
+    authorizationGuard:w=>assertReadOnlyCanary(w,"railway"),
+    ledgerFactory:()=>{claimed=true;return new InMemoryExecutionLedger();},
+    handler:()=>{handled=true;return {acknowledged:true};},
+  });
+  assert.equal(result.status,"BLOCKED");
+  assert.equal(result.code,"READ_ONLY_HANDLER_NOT_IMPLEMENTED");
+  assert.equal(claimed,false);
+  assert.equal(handled,false);
+  assert.deepEqual(finishes,[{status:"BLOCKED",code:"READ_ONLY_HANDLER_NOT_IMPLEMENTED"}]);
 });
