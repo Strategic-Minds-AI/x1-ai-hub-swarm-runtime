@@ -136,3 +136,58 @@ test("idle worker does nothing when queue is empty",async()=>{
   });
   assert.equal(result.status,"IDLE");
 });
+
+function authorizationFailureHarness(errorMessage) {
+  const work=leasedWork();
+  const calls=[];
+  let handlerCalled=false;
+  const queue={
+    leaseNextWork:async()=>work,
+    finishWork:async (_work,status,code)=>{calls.push({status,code})}
+  };
+  const controlPlane={requestMandatoryAuthorization:async()=>{throw new Error(errorMessage)}};
+  return {
+    calls,workerId:"worker-1",
+    config:{
+      queue,controlPlane,bootstrapSigningKey:"signing-key",
+      serviceRoleKey:"runtime-key",supabaseUrl:"https://supabase.example",
+      workerId:"worker-1",
+      handler:async()=>{handlerCalled=true;return "unsafe"}
+    },
+    getHandlerCalled:()=>handlerCalled
+  };
+}
+test("Foundry canary preserves sanitized provider authorization diagnostics while blocking all work",async()=>{
+  for(const [message,expected] of [
+    ["CONTROL_PLANE_AUTHORIZATION_FAILED:404:NOT_FOUND","CONTROL_PLANE_AUTHORIZATION_FAILED:404:NOT_FOUND"],
+    ["CONTROL_PLANE_AUTHORIZATION_FAILED:403:AUTH_REQUIRED","CONTROL_PLANE_AUTHORIZATION_FAILED:403:AUTH_REQUIRED"],
+    ["CONTROL_PLANE_AUTHORIZATION_FAILED:503:GATEWAY_UNAVAILABLE","CONTROL_PLANE_AUTHORIZATION_FAILED:503:GATEWAY_UNAVAILABLE"]
+  ]){
+    const run=authorizationFailureHarness(message);
+    const res=await processNextWork(run.config);
+    assert.equal(res.status,"BLOCKED");
+    assert.equal(res.code,"CONTROL_PLANE_AUTHORIZATION_FAILED");
+    assert.deepEqual(run.calls,[{status:"BLOCKED",code:expected}]);
+    assert.equal(run.getHandlerCalled(),false);
+  }
+});
+test("Foundry canary never writes authorization response body, token, or arbitrary error text to queue",async()=>{
+  for(const text of [
+    "CONTROL_PLANE_AUTHORIZATION_FAILED:403:AUTH_REQUIRED:Bearer SECRET-SHOULD-NOT-LOG",
+    "CONTROL_PLANE_AUTHORIZATION_FAILED:403:AUTH_REQUIRED token=SECRET-SHOULD-NOT-LOG",
+    "CONTROL_PLANE_AUTHORIZATION_FAILED:403:bad-case-secret"
+  ]){
+    const run=authorizationFailureHarness(text);
+    const res=await processNextWork(run.config);
+    assert.equal(res.status,"BLOCKED");
+    assert.deepEqual(run.calls,[{status:"BLOCKED",code:"CONTROL_PLANE_AUTHORIZATION_FAILED"}]);
+    assert.equal(JSON.stringify(run.calls).includes("SECRET-SHOULD-NOT-LOG"),false);
+  }
+});
+test("Foundry canary does not turn unrecognized thrown authorization errors into a provider success",async()=>{
+  const run=authorizationFailureHarness("CONTROL_PLANE_AUTHORIZATION_FAILED:000:UNKNOWN");
+  const res=await processNextWork(run.config);
+  assert.equal(res.status,"BLOCKED");
+  assert.equal(run.getHandlerCalled(),false);
+  assert.equal(run.calls[0].status,"BLOCKED");
+});
