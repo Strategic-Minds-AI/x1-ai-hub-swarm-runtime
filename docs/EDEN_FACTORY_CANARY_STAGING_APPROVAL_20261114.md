@@ -67,3 +67,13 @@ Verify 3 actual existing-scheduler cycles and restart recovery. Require independ
 Disable X1_EDEN_FACTORY_CANARY_ENABLED. Reject future admission of the one-task capability. Invalidate the single-use grant. Restore exactly [READ_ONLY] and the original capabilities on x1-swarm-preview-1. Restore the previously pinned Railway preview deployment only after scoped approval. Verify the old worker state, queue leases and no tenant/production changes via provider readback.
 
 No changes to protected permissions, provider secrets, DNS, billing, live Railway deployment, main, or scheduler are authorized by this documentation alone.
+
+## 2026-11-14 source implementation checkpoint (not deployed)
+
+Existing PR #12 now additionally contains src/eden-factory-codeworker.ts and tests/eden-factory-codeworker.test.mjs. The default-off handler reuses normalizeCodingWorkPacket and applyAuthorizedBranchWrite; verifies exact single-task admission, branch/source identity and signed HMAC grant, and requires both QA and Guardian evidence before it can return a completed canary receipt. Each independent verifier uses a different Ed25519 public key; signed proofs are bound to the exact GitHub candidate SHA, work ID, lease ID, receipt ID, actor and evidence reference. Tampered signatures and reused keys are rejected. Uncertain post-commit effects are preserved for reconciliation rather than retried blindly.
+
+The source and mock-provider suite passed GitHub Actions at SHA a28b380ee126d58655e3c61652f9c342cba9022d, run https://github.com/Strategic-Minds-AI/x1-ai-hub-swarm-runtime/actions/runs/43645480325. This is source CI ONLY; live worker write permission and provider-side admission remain unchanged and unverified.
+
+The active Railway preview service is still pinned to a different previously deployed branch. No handler or feature gate has been wired into that deployment. No X1 queue job was dispatched. No independent live Guardian certificate exists for this candidate.
+
+NEXT protected prerequisites: independent negative verification and approval of provider-side atomic one-task admission in BOTH x1_lease_next_work and x1_lease_work_by_id; approved narrow worker capability and sandbox; owner-authorized preview deployment and provider-bound credentials; then one real queue-to-GitHub canary. Permission broadening without those guards is explicitly forbidden.
