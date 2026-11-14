@@ -30,13 +30,14 @@ async function runDenied(errorCode) {
 test("HTTP 401 control-plane denial blocks work without executing handler",async()=>{
   const x=await runDenied("CONTROL_PLANE_AUTHORIZATION_FAILED:401:UNAUTHORIZED");
   assert.equal(x.result.status,"BLOCKED");
-  assert.deepEqual(x.finishes,[{status:"BLOCKED",code:"CONTROL_PLANE_AUTHORIZATION_FAILED"}]);
+  assert.deepEqual(x.finishes,[{status:"BLOCKED",code:"CONTROL_PLANE_AUTHORIZATION_FAILED:401:UNAUTHORIZED"}]);
   assert.equal(x.handlerCalls,0);
 });
 
 test("HTTP 503 authorization failure also fails closed rather than retrying",async()=>{
   const x=await runDenied("CONTROL_PLANE_AUTHORIZATION_FAILED:503:AUTH_BACKEND_UNAVAILABLE");
   assert.equal(x.result.status,"BLOCKED");
+  assert.deepEqual(x.finishes,[{status:"BLOCKED",code:"CONTROL_PLANE_AUTHORIZATION_FAILED:503:AUTH_BACKEND_UNAVAILABLE"}]);
   assert.equal(x.handlerCalls,0);
 });
 
