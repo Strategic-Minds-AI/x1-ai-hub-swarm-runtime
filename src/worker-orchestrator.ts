@@ -39,6 +39,19 @@ function codeFor(error:unknown): string {
   return error.message.split(":")[0] ?? "UNKNOWN_FAILURE";
 }
 
+// A real staging worker can reach the X1 lease path yet fail at the control-plane
+// authorization API. Preserve only a strict machine-readable HTTP status and
+// provider error code. Never persist response bodies, URLs, request tokens, or
+// freeform exception messages to the work queue.
+const SAFE_CONTROL_PLANE_FAILURE =
+  /^CONTROL_PLANE_AUTHORIZATION_FAILED:([0-9]{3}):([A-Z0-9_]{1,80})$/;
+function safeFailureDetail(error:unknown): string {
+  const code=codeFor(error);
+  if(code!=="CONTROL_PLANE_AUTHORIZATION_FAILED" || !(error instanceof Error)) return code;
+  const candidate=error.message.trim();
+  return SAFE_CONTROL_PLANE_FAILURE.test(candidate) ? candidate : code;
+}
+
 function nonRetryableAuthorizationError(code:string): boolean {
   return [
     "CAPABILITY_BOOTSTRAP_BLOCKED",
@@ -77,7 +90,7 @@ export async function processNextWork<T=unknown>(
     const code=codeFor(error);
     // Credential/auth failures are not transient worker failures. Never auto-retry them.
     const status=nonRetryableAuthorizationError(code) ? "BLOCKED" : "FAILED";
-    await config.queue.finishWork(work,status,code);
+    await config.queue.finishWork(work,status,safeFailureDetail(error));
     return {status,workId:work.work_id,code};
   }
 
@@ -122,7 +135,7 @@ export async function processNextWork<T=unknown>(
     }
     const status=code==="DUPLICATE_EXECUTION" ||
       nonRetryableAuthorizationError(code) ? "BLOCKED" : "FAILED";
-    await config.queue.finishWork(work,status,code);
+    await config.queue.finishWork(work,status,safeFailureDetail(error));
     return {status,workId:work.work_id,code};
   }
 
