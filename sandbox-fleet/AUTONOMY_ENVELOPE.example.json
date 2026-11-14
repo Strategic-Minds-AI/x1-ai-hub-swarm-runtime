@@ -1,0 +1,45 @@
+{
+  "schema_version": "1.0",
+  "status": "DRAFT_NOT_AN_APPROVAL",
+  "project": "website-launch-engine",
+  "tenant_scope": "EXPLICIT_ALLOWLIST_REQUIRED",
+  "providers": {
+    "github": {
+      "allowed": "feature-branch-only"
+    },
+    "vercel": {
+      "allowed": "preview-only-after-budget-approval"
+    },
+    "railway": {
+      "allowed": "existing-worker-pool-only"
+    },
+    "supabase": {
+      "allowed": "x1-staging-private-metadata-only"
+    },
+    "google_drive": {
+      "allowed": "verified-artifacts-to-approved-folder-only"
+    }
+  },
+  "namespace_prefix": "sandbox/",
+  "max_ttl_minutes": 120,
+  "default_ttl_minutes": 30,
+  "max_concurrent_per_tenant": 3,
+  "max_concurrent_global": 20,
+  "max_automated_repairs": 3,
+  "max_spend_usd_per_day": 0,
+  "budget_approval_reference": null,
+  "production_actions_allowed": false,
+  "delete_scope": "SANDBOX_OWNED_AND_ARCHIVED_ONLY",
+  "network_access": "deny-by-default",
+  "seed_data": "synthetic-only",
+  "operator_acknowledgement_required": [
+    "budget activation",
+    "credential binding",
+    "production rollout",
+    "client messages",
+    "DNS and domain purchase",
+    "permission elevation"
+  ],
+  "receipt_contract": "source SHA + resource ownership + signed job + independent validation + archive hash + rollback",
+  "active": false
+}

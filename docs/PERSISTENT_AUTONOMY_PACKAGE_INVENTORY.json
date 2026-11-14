@@ -1,0 +1,44 @@
+[
+  {
+    "name": "STRATEGIC_MINDS_SEAL_TEAM_FINAL_v1.1.zip",
+    "sha256": "44fbae5909a948a084c8e0a9f6c5a82792e5bab0eac2f5ea5b628251ffd1e918",
+    "entries": 45,
+    "expanded_bytes": 44595
+  },
+  {
+    "name": "XTREME_SUPER_AGENT_00_CONTROL_PLANE(1).zip",
+    "sha256": "d3700576de0069015f271e36af888833ea706cd96c8be5b287cfee1e8a7d2777",
+    "entries": 7,
+    "expanded_bytes": 6736
+  },
+  {
+    "name": "XTREME_SUPER_AGENT_01_BUILD_FACTORY(1).zip",
+    "sha256": "66c7dc468ce27d202343e54aa5833908a150ea2b42ee3ead172fc391a659eef7",
+    "entries": 6,
+    "expanded_bytes": 3788
+  },
+  {
+    "name": "XTREME_SUPER_AGENT_02_VISUAL_FACTORY(1).zip",
+    "sha256": "8a30835e5ad6e1feecd256cc38fe539fa84223eb1c8a0088f595b6460510843e",
+    "entries": 5,
+    "expanded_bytes": 3230
+  },
+  {
+    "name": "XTREME_SUPER_AGENT_03_PROVIDER_ADAPTERS(1).zip",
+    "sha256": "a8fa6ed31f080e2c3ba64cd6a5da517b6400d41ca8b9a137d122987fa81eeb27",
+    "entries": 6,
+    "expanded_bytes": 4578
+  },
+  {
+    "name": "XTREME_SUPER_AGENT_04_SCALE_FLEET(1).zip",
+    "sha256": "43fe05135ad88a57c9494f36922d1265502cd6f7d2a42adda9072838cd4ba3f4",
+    "entries": 6,
+    "expanded_bytes": 3940
+  },
+  {
+    "name": "xtreme-super-agents- base44-package(2).zip",
+    "sha256": "4c1a7f19bee0fbe75f79518294a97437f94ce548b19596d55aa198346834651d",
+    "entries": 209,
+    "expanded_bytes": 1011988
+  }
+]
