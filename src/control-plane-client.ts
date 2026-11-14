@@ -1,10 +1,12 @@
 import type { BootstrapAuthorization, CapabilityRequirement } from "./types.js";
 import type { HttpFetchLike } from "./supabase-execution-ledger.js";
+import { boundedRequest } from "./bounded-request.js";
 
 export interface ControlPlaneClientConfig {
   baseUrl: string;
   internalServiceToken: string;
   fetchImpl?: HttpFetchLike;
+  requestTimeoutMs?: number;
 }
 
 export interface AuthorizationRequest {
@@ -44,6 +46,7 @@ export class ControlPlaneClient {
   }
 
   async requestMandatoryAuthorization(input: AuthorizationRequest): Promise<BootstrapAuthorization> {
+    return boundedRequest("CONTROL_PLANE_AUTHORIZATION",this.config.requestTimeoutMs ?? 12000,async(signal)=>{
     const response=await resolveFetch(this.config)(
       endpointFor(this.config.baseUrl),
       {
@@ -54,15 +57,21 @@ export class ControlPlaneClient {
           Accept:"application/json",
         },
         body:JSON.stringify(input),
+        signal,
       },
     );
     const text=await response.text();
     let body:AuthorizationResponse={};
     try { body=text ? JSON.parse(text) as AuthorizationResponse : {}; } catch {}
 
-    if((response.ok || response.status===403) && body.authorization) {
+    if (response.ok && body.authorization && body.authorization.allowed === true) {
+      return body.authorization;
+    }
+    // A 403 response can carry a signed explicit denial, but never an allow.
+    if (response.status === 403 && body.authorization && body.authorization.allowed === false) {
       return body.authorization;
     }
     throw new Error(`CONTROL_PLANE_AUTHORIZATION_FAILED:${response.status}:${body.code ?? "UNKNOWN"}`);
+    });
   }
 }

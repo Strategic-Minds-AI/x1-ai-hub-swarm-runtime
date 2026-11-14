@@ -25,7 +25,7 @@ function authorization({allowed=true,tenant="00000000-0000-0000-0000-00000000000
     authorization_id:"auth-1",task_id:task,agent_id:agent,tenant_id:tenant,requested_action:"READ_ONLY",
     capabilities_required:["skill-creator"],capabilities_resolved:allowed?["skill-creator"]:[],
     capability_sources:allowed?{"skill-creator":"catalog"}:{},policy_version:"p1",registry_version:"r1",
-    issued_at:"2026-09-24T10:00:00.000Z",expires_at:"2099-09-24T10:05:00.000Z",
+    issued_at:new Date(Date.now()-60_000).toISOString(),expires_at:new Date(Date.now()+240_000).toISOString(),
     allowed,blockers:allowed?[]:[{capabilityId:"skill-creator",state:"MISSING_SKILL",closure:"CREATE_SKILL",detail:"missing"}],
     receipt_id:"receipt-1",
   };
@@ -50,7 +50,7 @@ function leasedWork(){
     attempt:1,
     lease:{
       leaseId:"lease-1",taskId:"task-1",holderAgentId:"worker-1",
-      acquiredAt:"2026-09-24T10:00:00.000Z",expiresAt:"2099-09-24T10:05:00.000Z",
+      acquiredAt:new Date(Date.now()-60_000).toISOString(),expiresAt:new Date(Date.now()+240_000).toISOString(),
     },
   };
 }
@@ -135,4 +135,59 @@ test("idle worker does nothing when queue is empty",async()=>{
     supabaseUrl:"https://supabase.example",workerId:"worker-1",handler:()=>{},
   });
   assert.equal(result.status,"IDLE");
+});
+
+function authorizationFailureHarness(errorMessage) {
+  const work=leasedWork();
+  const calls=[];
+  let handlerCalled=false;
+  const queue={
+    leaseNextWork:async()=>work,
+    finishWork:async (_work,status,code)=>{calls.push({status,code})}
+  };
+  const controlPlane={requestMandatoryAuthorization:async()=>{throw new Error(errorMessage)}};
+  return {
+    calls,workerId:"worker-1",
+    config:{
+      queue,controlPlane,bootstrapSigningKey:"signing-key",
+      serviceRoleKey:"runtime-key",supabaseUrl:"https://supabase.example",
+      workerId:"worker-1",
+      handler:async()=>{handlerCalled=true;return "unsafe"}
+    },
+    getHandlerCalled:()=>handlerCalled
+  };
+}
+test("Foundry canary preserves sanitized provider authorization diagnostics while blocking all work",async()=>{
+  for(const [message,expected] of [
+    ["CONTROL_PLANE_AUTHORIZATION_FAILED:404:NOT_FOUND","CONTROL_PLANE_AUTHORIZATION_FAILED:404:NOT_FOUND"],
+    ["CONTROL_PLANE_AUTHORIZATION_FAILED:403:AUTH_REQUIRED","CONTROL_PLANE_AUTHORIZATION_FAILED:403:AUTH_REQUIRED"],
+    ["CONTROL_PLANE_AUTHORIZATION_FAILED:503:GATEWAY_UNAVAILABLE","CONTROL_PLANE_AUTHORIZATION_FAILED:503:GATEWAY_UNAVAILABLE"]
+  ]){
+    const run=authorizationFailureHarness(message);
+    const res=await processNextWork(run.config);
+    assert.equal(res.status,"BLOCKED");
+    assert.equal(res.code,"CONTROL_PLANE_AUTHORIZATION_FAILED");
+    assert.deepEqual(run.calls,[{status:"BLOCKED",code:expected}]);
+    assert.equal(run.getHandlerCalled(),false);
+  }
+});
+test("Foundry canary never writes authorization response body, token, or arbitrary error text to queue",async()=>{
+  for(const text of [
+    "CONTROL_PLANE_AUTHORIZATION_FAILED:403:AUTH_REQUIRED:Bearer SECRET-SHOULD-NOT-LOG",
+    "CONTROL_PLANE_AUTHORIZATION_FAILED:403:AUTH_REQUIRED token=SECRET-SHOULD-NOT-LOG",
+    "CONTROL_PLANE_AUTHORIZATION_FAILED:403:bad-case-secret"
+  ]){
+    const run=authorizationFailureHarness(text);
+    const res=await processNextWork(run.config);
+    assert.equal(res.status,"BLOCKED");
+    assert.deepEqual(run.calls,[{status:"BLOCKED",code:"CONTROL_PLANE_AUTHORIZATION_FAILED"}]);
+    assert.equal(JSON.stringify(run.calls).includes("SECRET-SHOULD-NOT-LOG"),false);
+  }
+});
+test("Foundry canary does not turn unrecognized thrown authorization errors into a provider success",async()=>{
+  const run=authorizationFailureHarness("CONTROL_PLANE_AUTHORIZATION_FAILED:000:UNKNOWN");
+  const res=await processNextWork(run.config);
+  assert.equal(res.status,"BLOCKED");
+  assert.equal(run.getHandlerCalled(),false);
+  assert.equal(run.calls[0].status,"BLOCKED");
 });

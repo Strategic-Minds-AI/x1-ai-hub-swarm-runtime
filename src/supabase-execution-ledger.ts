@@ -1,4 +1,5 @@
 import type { ExecutionLedger } from "./execution-ledger.js";
+import { boundedRequest } from "./bounded-request.js";
 
 export interface HttpResponseLike {
   ok: boolean;
@@ -8,7 +9,7 @@ export interface HttpResponseLike {
 
 export type HttpFetchLike = (
   input: string,
-  init?: { method?: string; headers?: Record<string, string>; body?: string },
+  init?: { method?: string; headers?: Record<string, string>; body?: string; signal?: AbortSignal },
 ) => Promise<HttpResponseLike>;
 
 export interface SupabaseExecutionLedgerConfig {
@@ -22,6 +23,7 @@ export interface SupabaseExecutionLedgerConfig {
   attempt: number;
   completionReceiptId: string;
   fetchImpl?: HttpFetchLike;
+  requestTimeoutMs?: number;
 }
 
 function resolveFetch(config: SupabaseExecutionLedgerConfig): HttpFetchLike {
@@ -47,6 +49,7 @@ export class SupabaseExecutionLedger implements ExecutionLedger {
   }
 
   private async rpc(name: string, body: Record<string, unknown>): Promise<unknown> {
+    return boundedRequest("LEDGER_RPC",this.config.requestTimeoutMs ?? 12000,async(signal)=>{
     const fetchImpl=resolveFetch(this.config);
     if(this.config.gatewayUrl && this.config.internalServiceToken) {
       const response=await fetchImpl(this.config.gatewayUrl,{
@@ -57,6 +60,7 @@ export class SupabaseExecutionLedger implements ExecutionLedger {
           Accept:"application/json",
         },
         body:JSON.stringify({op:"rpc",name,body}),
+        signal,
       });
       const text=await response.text();
       let parsed:any={};
@@ -78,6 +82,7 @@ export class SupabaseExecutionLedger implements ExecutionLedger {
           Accept: "application/json",
         },
         body: JSON.stringify(body),
+          signal,
       },
     );
     const text = await response.text();
@@ -91,6 +96,7 @@ export class SupabaseExecutionLedger implements ExecutionLedger {
       throw new Error(`SUPABASE_RPC_FAILED:${response.status}:${code}`);
     }
     return text ? JSON.parse(text) : null;
+    });
   }
 
   async tryStart(taskId: string, leaseId: string): Promise<boolean> {

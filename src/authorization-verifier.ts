@@ -47,8 +47,21 @@ export function verifyBootstrapAuthorization(
   if (authorization.task_id !== context.taskId || authorization.agent_id !== context.agentId || authorization.tenant_id !== context.tenantId) {
     throw new Error("AUTHORIZATION_CONTEXT_MISMATCH");
   }
+  if (!context.requestedAction || authorization.requested_action !== context.requestedAction) {
+    throw new Error("AUTHORIZATION_ACTION_MISMATCH");
+  }
   if (!authorization.receipt_id || !authorization.authorization_id) throw new Error("AUTHORIZATION_RECEIPT_REQUIRED");
-  if (Date.parse(authorization.expires_at) <= now.getTime()) throw new Error("AUTHORIZATION_EXPIRED");
+  const issuedAt=Date.parse(authorization.issued_at);
+  const expiresAt=Date.parse(authorization.expires_at);
+  if(!Number.isFinite(issuedAt) || !Number.isFinite(expiresAt)) {
+    throw new Error("AUTHORIZATION_TIME_WINDOW_INVALID");
+  }
+  if(expiresAt<=now.getTime()) throw new Error("AUTHORIZATION_EXPIRED");
+  // Permissions are minted for one short execution window, never decades.
+  if(expiresAt<=issuedAt || expiresAt-issuedAt>15*60*1000 ||
+     issuedAt>now.getTime()+60*1000) {
+    throw new Error("AUTHORIZATION_TIME_WINDOW_INVALID");
+  }
   if (authorization.signature.algorithm !== "HMAC-SHA256") throw new Error("AUTHORIZATION_SIGNATURE_ALGORITHM_INVALID");
 
   const expected = createHmac("sha256", signingKey)
