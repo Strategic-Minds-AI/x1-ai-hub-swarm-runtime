@@ -216,7 +216,7 @@ test("a stuck tick triggers bounded shutdown without false completion",async()=>
 test("wrong action class is rejected even with a valid signature",async()=>{
   const auth=authorization();
   const ctx={taskId:"task-1",agentId:"worker-1",tenantId:tenant,
-    requestedAction:"PRODUCTION_RELEASE"};
+    requestedAction:"PROTECTED"};
   await assert.rejects(()=>executeAuthorizedTask({
     authorization:auth,context:ctx,lease:work().lease,signingKey:key,
     ledger:{tryStart:async()=>true,complete:async()=>{},fail:async()=>{}},

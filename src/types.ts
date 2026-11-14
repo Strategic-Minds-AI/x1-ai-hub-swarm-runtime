@@ -55,7 +55,7 @@ export interface LeasedWork {
   task_id: string;
   tenant_id: string;
   requested_by: string;
-  action_class: "READ_ONLY" | "NON_PRODUCTION_MUTATION" | "PROTECTED_MUTATION" | "PRODUCTION_RELEASE";
+  action_class: "READ_ONLY" | "DRAFT" | "BRANCH_WRITE" | "PREVIEW_WRITE" | "PROTECTED";
   required_capabilities: CapabilityRequirement[];
   payload: Record<string, unknown>;
   source_sha?: string | null;
