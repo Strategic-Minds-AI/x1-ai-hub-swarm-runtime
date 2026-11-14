@@ -44,7 +44,7 @@ function codeFor(error:unknown): string {
 // provider error code. Never persist response bodies, URLs, request tokens, or
 // freeform exception messages to the work queue.
 const SAFE_CONTROL_PLANE_FAILURE =
-  /^CONTROL_PLANE_AUTHORIZATION_FAILED:([0-9]{3}):([A-Z0-9_]{1,80})$/;
+  /^CONTROL_PLANE_AUTHORIZATION_FAILED:([45][0-9]{2}):([A-Z0-9_]{1,80})$/;
 function safeFailureDetail(error:unknown): string {
   const code=codeFor(error);
   if(code!=="CONTROL_PLANE_AUTHORIZATION_FAILED" || !(error instanceof Error)) return code;
