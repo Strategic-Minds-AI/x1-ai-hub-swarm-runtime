@@ -8,6 +8,7 @@ declare module "node:crypto" {
     digest(encoding: "hex"): string;
   };
   export function timingSafeEqual(a: Uint8Array, b: Uint8Array): boolean;
+  export function verify(algorithm: string | null, data: Uint8Array, key: string, signature: Uint8Array): boolean;
 }
 declare module "node:http" {
   export function createServer(handler:(req:{url?:string},res:{
