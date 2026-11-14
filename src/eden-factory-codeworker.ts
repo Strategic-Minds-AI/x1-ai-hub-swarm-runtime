@@ -1,5 +1,6 @@
 // ONE synthetic Eden Factory task inside the existing X1 worker's already
 // authenticated queue/lease/ledger path. NOT wired to a runtime or enabled.
+import {verify as verifySignature} from "node:crypto";
 import {EDEN_FACTORY_CANARY as F,normalizeCodingWorkPacket} from "./coding-agent-contract.js";
 import {applyAuthorizedBranchWrite,type BranchWriteGrant,type BranchWriteReceipt,type BranchWriterConfig} from "./github-branch-writer.js";
 import type {Proposal} from "./autobuild-pipeline.js";
@@ -13,7 +14,7 @@ export interface AtomicAdmission {
 export interface IndependentCheck {
   status:"PASS"|"FAIL"|"UNKNOWN"; actorId:string; receiptId:string;
   commitSha:string; workId:string; leaseId:string; artifactUri:string;
-  independentlyAuthenticated:boolean;
+  independentlyAuthenticated:boolean; issuedAt:string; signatureHex:string;
 }
 export interface CanaryRecord {
   workId:string; leaseId:string; commitSha:string; branch:string;
@@ -25,6 +26,8 @@ export interface EdenFactoryCodeworkerConfig {
   workerId:string;
   tenantId:string;
   writer:BranchWriterConfig;
+  qaPublicKey:string;
+  guardianPublicKey:string;
   // All callbacks MUST be provider-native authenticated server-side methods,
   // never passed through an MCP request, model output, or browser.
   verifyAtomicAdmission:(work:LeasedWork)=>Promise<AtomicAdmission>;
@@ -54,18 +57,31 @@ function assertAdmission(a:AtomicAdmission,w:LeasedWork,now:number):void {
    Date.parse(a.expiresAt)-Date.parse(a.issuedAt)>10*60*1000)
   throw new Error("X1_FACTORY_ATOMIC_ADMISSION_REQUIRED");
 }
-function assertIndependent(p:IndependentCheck,w:LeasedWork,r:BranchWriteReceipt,kind:string):void {
+function assertIndependent(p:IndependentCheck,w:LeasedWork,r:BranchWriteReceipt,kind:string,
+ publicKey:string,now:number):void {
  if(p.status!=="PASS" || p.independentlyAuthenticated!==true ||
    !p.actorId || p.actorId===F.worker || !p.receiptId || !p.artifactUri ||
    p.commitSha!==r.commitSha || p.workId!==w.work_id ||
-   p.leaseId!==w.lease?.leaseId)
+   p.leaseId!==w.lease?.leaseId ||
+   !/^https:\/\/[^\s]+$/.test(p.artifactUri) ||
+   !Number.isFinite(Date.parse(p.issuedAt)) ||
+   Date.parse(p.issuedAt)>now+60000 || now-Date.parse(p.issuedAt)>10*60000 ||
+   !/^[0-9a-f]{128}$/i.test(p.signatureHex) ||
+   !publicKey.includes("BEGIN PUBLIC KEY"))
   throw new Error("X1_FACTORY_"+kind+"_PROOF_REQUIRED");
+ const signed=JSON.stringify([p.status,p.actorId,p.receiptId,p.commitSha,
+   p.workId,p.leaseId,p.artifactUri,p.issuedAt]);
+ const bytes=new Uint8Array((p.signatureHex.match(/.{2}/g)||[]).map(x=>parseInt(x,16)));
+ if(!verifySignature(null,new TextEncoder().encode(signed),publicKey,bytes))
+  throw new Error("X1_FACTORY_"+kind+"_SIGNATURE_INVALID");
 }
 export function createEdenFactoryCodeworker(config:EdenFactoryCodeworkerConfig) {
  return async (work:LeasedWork) => {
   if(config.enabled!==true || config.environment!=="preview" ||
      config.workerId!==F.worker || config.tenantId!==F.tenant ||
-     config.writer.enabled!==true)
+     config.writer.enabled!==true ||
+     !config.qaPublicKey || !config.guardianPublicKey ||
+     config.qaPublicKey===config.guardianPublicKey)
     throw new Error("X1_FACTORY_CODEWORKER_DISABLED");
   if(work.payload?.kind!==F.kind)throw new Error("X1_FACTORY_CANARY_KIND_REQUIRED");
   const p=normalizeCodingWorkPacket(work);
@@ -92,9 +108,9 @@ export function createEdenFactoryCodeworker(config:EdenFactoryCodeworkerConfig) 
       commit.baseSha!==F.sourceSha || !/^[a-f0-9]{40}$/.test(commit.commitSha))
     throw new Error("X1_FACTORY_COMMIT_READBACK_MISMATCH");
    const qa=await config.independentQa(work,commit);
-   assertIndependent(qa,work,commit,"QA");
+   assertIndependent(qa,work,commit,"QA",config.qaPublicKey,(config.now??Date.now)());
    const guardian=await config.guardian(work,commit);
-   assertIndependent(guardian,work,commit,"GUARDIAN");
+   assertIndependent(guardian,work,commit,"GUARDIAN",config.guardianPublicKey,(config.now??Date.now)());
    if(guardian.actorId===qa.actorId)
     throw new Error("X1_FACTORY_INDEPENDENT_ROLE_SEPARATION_REQUIRED");
    const persisted=await config.persistAndReadback(work,commit,qa,guardian);
