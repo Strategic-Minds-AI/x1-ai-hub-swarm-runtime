@@ -1,10 +1,20 @@
 import {test} from "node:test";
 import assert from "node:assert/strict";
-import {createHmac} from "node:crypto";
+import {createHmac,generateKeyPairSync,sign} from "node:crypto";
 import {EDEN_FACTORY_CANARY as F} from "../dist/coding-agent-contract.js";
 import {createEdenFactoryCodeworker} from "../dist/eden-factory-codeworker.js";
 
 const now=Date.now(),tree="e".repeat(40),commit="c".repeat(40);
+const QA_KEYS=generateKeyPairSync("ed25519");
+const GUARDIAN_KEYS=generateKeyPairSync("ed25519");
+function signedCheck(w,actorId,receiptId,artifactUri,keys){
+ const p={status:"PASS",actorId,receiptId,commitSha:commit,workId:w.work_id,
+  leaseId:w.lease.leaseId,artifactUri,independentlyAuthenticated:true,
+  issuedAt:new Date(now).toISOString()};
+ const msg=JSON.stringify([p.status,p.actorId,p.receiptId,p.commitSha,
+   p.workId,p.leaseId,p.artifactUri,p.issuedAt]);
+ return {...p,signatureHex:sign(null,Buffer.from(msg),keys.privateKey).toString("hex")};
+}
 function work(){
  return {work_id:"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
   tenant_id:F.tenant,mission_id:F.mission,task_id:F.task,
@@ -38,6 +48,8 @@ function setup(changes={}){
  const cfg={
   enabled:true,environment:"preview",workerId:F.worker,tenantId:F.tenant,
   writer:{enabled:true,githubToken:"mock-token",grantSigningKey:"mock-sign-key",fetchImpl},
+  qaPublicKey:QA_KEYS.publicKey.export({type:"spki",format:"pem"}),
+  guardianPublicKey:GUARDIAN_KEYS.publicKey.export({type:"spki",format:"pem"}),
   now:()=>now,
   verifyAtomicAdmission:async w=>{
    admission++;
@@ -56,14 +68,10 @@ function setup(changes={}){
     grant.repo,grant.branch,grant.expectedSha,grant.expiresAt,grant.allowedPaths]);
    return {...grant,signature:createHmac("sha256","mock-sign-key").update(msg).digest("hex")};
   },
-  independentQa:async w=>{reviews++;return {status:"PASS",actorId:"separate-qa",
-   receiptId:"qa-receipt-001",commitSha:commit,workId:w.work_id,
-   leaseId:w.lease.leaseId,artifactUri:"https://example.invalid/qa",
-   independentlyAuthenticated:true};},
-  guardian:async w=>{reviews++;return {status:"PASS",actorId:"separate-guardian",
-   receiptId:"guardian-receipt-001",commitSha:commit,workId:w.work_id,
-   leaseId:w.lease.leaseId,artifactUri:"https://example.invalid/guardian",
-   independentlyAuthenticated:true};},
+  independentQa:async w=>{reviews++;return signedCheck(w,"separate-qa",
+    "qa-receipt-001","https://example.invalid/qa",QA_KEYS);},
+  guardian:async w=>{reviews++;return signedCheck(w,"separate-guardian",
+    "guardian-receipt-001","https://example.invalid/guardian",GUARDIAN_KEYS);},
   persistAndReadback:async w=>({
     workId:w.work_id,leaseId:w.lease.leaseId,commitSha:commit,branch:F.branch,
     qaReceiptId:"qa-receipt-001",guardianReceiptId:"guardian-receipt-001",
@@ -121,7 +129,8 @@ test("postcommit independent QA or Guardian failure never returns completed",asy
   const s=setup({[field]:async w=>({
    status:"UNKNOWN",actorId:"unverified",receiptId:"none",commitSha:commit,
    workId:w.work_id,leaseId:w.lease.leaseId,artifactUri:"none",
-   independentlyAuthenticated:false})});
+   independentlyAuthenticated:false,issuedAt:new Date(now).toISOString(),
+   signatureHex:"a".repeat(128)})});
   await assert.rejects(createEdenFactoryCodeworker(s.cfg)(work()),/COMPLETION_UNCONFIRMED/);
   assert.equal(s.counts().network,5);
  }
@@ -133,4 +142,18 @@ test("durable readback mismatch after GitHub write quarantines instead of succes
   guardianReceiptId:"guardian-receipt-001",persistenceReceiptId:"receipt"})});
  await assert.rejects(createEdenFactoryCodeworker(s.cfg)(work()),/COMPLETION_UNCONFIRMED/);
  assert.equal(s.counts().network,5);
+});
+
+test("tampered signed QA receipt cannot produce a success receipt",async()=>{
+ const s=setup({independentQa:async w=>{
+  const signed=signedCheck(w,"separate-qa","qa-receipt-001","https://example.invalid/qa",QA_KEYS);
+  return {...signed,receiptId:"tampered-receipt"};
+ }});
+ await assert.rejects(createEdenFactoryCodeworker(s.cfg)(work()),/COMPLETION_UNCONFIRMED/);
+ assert.equal(s.counts().network,5);
+});
+test("same QA and Guardian signing keys are rejected before any effect",async()=>{
+ const s=setup({guardianPublicKey:QA_KEYS.publicKey.export({type:"spki",format:"pem"})});
+ await assert.rejects(createEdenFactoryCodeworker(s.cfg)(work()),/CODEWORKER_DISABLED/);
+ assert.equal(s.counts().network,0);
 });
