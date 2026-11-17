@@ -72,8 +72,11 @@ export function compileX1PreviewPack(work:LeasedWork):PreviewPack {
   baseSourceSha:work.source_sha as string,
   prompt:p.prompt,html,sourceSha256:sha256(html),sourceBranch:branch,sourcePath:path,
   vercelFiles:[
-   {file:"src/index.html",data:html,encoding:"utf-8" as const},
-   {file:"src/vercel.json",data:policies,encoding:"utf-8" as const}
+   // The existing Website Launch Engine project serves inline deployment
+   // files from the deployment root. Prefixing with src/ silently returns
+   // READY but causes HTTP 404 at /. Verified against an actual Preview.
+   {file:"index.html",data:html,encoding:"utf-8" as const},
+   {file:"vercel.json",data:policies,encoding:"utf-8" as const}
   ],
  });
 }
