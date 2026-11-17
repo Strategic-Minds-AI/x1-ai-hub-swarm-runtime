@@ -37,7 +37,8 @@ test("valid pack contains immutable code and only Vercel preview files",()=>{
  assert.equal(p.workId,WORK);
  assert.equal(p.sourceSha256,sha(HTML));
  assert.equal(p.sourcePath,"generated-previews/"+WORK+"/index.html");
- assert.deepEqual(p.vercelFiles.map(f=>f.file),["src/index.html","src/vercel.json"]);
+ assert.deepEqual(p.vercelFiles.map(f=>f.file),["index.html","vercel.json"]);
+ assert.ok(p.vercelFiles.every(f=>!f.file.startsWith("src/")),"root files must not be nested for Website Launch Engine");
  assert.match(p.vercelFiles[1].data,/noindex/);
 });
 test("invalid action, identity, lease and task fail closed",()=>{
@@ -110,7 +111,8 @@ test("network provider commits exact source and deploys via existing GitHub/Verc
  assert.equal(calls.filter(c=>c.url.endsWith("/git/refs")&&c.method==="POST").length,1);
  assert.equal(calls.filter(c=>c.url.includes("/v13/deployments?")&&c.method==="POST").length,1);
  const deploy=calls.find(c=>c.url.includes("/v13/deployments?"));
- assert.deepEqual(deploy.body.files.map(f=>f.file),["src/index.html","src/vercel.json"]);
+ assert.deepEqual(deploy.body.files.map(f=>f.file),["index.html","vercel.json"]);
+ assert.ok(deploy.body.files.every(f=>!f.file.includes("/")),"inline deployment files must be at root");
  assert.equal(Object.hasOwn(deploy.body,"target"),false);
  assert.equal(Object.hasOwn(deploy.body,"alias"),false);
  assert.equal(calls.some(c=>JSON.stringify(c.body??{}).includes("refs/heads/main")),false);
