@@ -168,3 +168,20 @@ test("browser validator failure prevents a success receipt",async()=>{
   verifyDeployed:async()=>{throw new Error("INDEPENDENT_VALIDATION_REQUIRED");}
  }),/INDEPENDENT_VALIDATION_REQUIRED/);
 });
+
+test("READY but HTTP 404 at preview root fails code-delivery gate",async()=>{
+ const pack=compileX1PreviewPack(work());
+ let previewGets=0;
+ const provider=createX1PreviewHttpProvider({
+  githubToken:"test-only",vercelToken:"test-only",
+  fetchImpl:async url=>{
+   if(url===URL){previewGets++;return new Response("NOT_FOUND",{status:404});}
+   return new Response(JSON.stringify({deployment:ready()}),{status:200});
+  }
+ });
+ await assert.rejects(
+  ()=>provider.verifyDeployed(pack,{id:DEPLOY_ID,url:URL},COMMIT),
+  /X1_PREVIEW_HTTP_404/
+ );
+ assert.equal(previewGets,1,"READY must never mask an inaccessible preview root");
+});
